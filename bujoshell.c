@@ -8,6 +8,7 @@
 #include "init.h"
 #include "input.h"
 #include "update.h"
+// #include "util.h"
 
 /*
   functions: FunctionName()
@@ -23,12 +24,14 @@ int main(int argc, char **argv) {
   AppData app;
 
   InitScreen();
+
   ErrorCode init_app = InitApp(&app);
   if (init_app != NO_ERROR) {
     endwin();
     fprintf(stderr, "Error initializing windows: %d\n", init_app);
     return init_app;
   }
+  // AddEntry(&app.future_log, 2, NOTE, "Cool day", "2024-02-12,20:40", NULL);
   ErrorCode init_windows_result = InitWindows(&app);
   if (init_windows_result != NO_ERROR) {
     endwin();
@@ -45,6 +48,7 @@ int main(int argc, char **argv) {
     }
 
     ErrorCode draw_screen = DrawScreen(&app);
+
     if (draw_screen != NO_ERROR) {
       endwin();
       fprintf(stderr, "Error drawing screen: %d\n", draw_screen);

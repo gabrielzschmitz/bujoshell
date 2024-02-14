@@ -1,81 +1,43 @@
-#include "util.h"
-
-#include <ncurses.h>
 #include <sqlite3.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "bujoshell.h"
+#define MAX_MONTHS 12
 
-/* Set text foreground and background colors */
-void SetColor(short int fg, short int bg, chtype attr) {
-  chtype color = COLOR_PAIR(bg * PALLETE_SIZE + fg + 1);
-  color |= attr;
-  attrset(color);
-}
+/* Defining entry type enum */
+typedef enum { TASK, NOTE, EVENT, APPOINTMENT } EntryType;
 
-/* Get the screen size */
-void GetScreenSize(AppData *app) {
-  getmaxyx(stdscr, app->height, app->width);
-  app->middle_x = app->width / 2;
-  app->middle_y = app->height / 2;
-}
+/* Defining a structure for a note */
+typedef struct LogEntry LogEntry;
+struct LogEntry {
+  int id;
+  EntryType type;
+  char *date;
+  char *text;
+  char *deadline;
+  struct LogEntry *next;
+};
 
-/* Create a border into a given window */
-void CreateBorder(Window *win, short int fg, short int bg, chtype attr) {
-  SetColor(fg, bg, attr);
+/* Defining a structure for a month */
+typedef struct MonthEntry MonthEntry;
+struct MonthEntry {
+  LogEntry *head;
+};
 
-  int start_x = win->start_x;
-  int start_y = win->start_y;
-  int width = win->width - 1;
-  int height = win->height - 1;
+/* Defining a structure for the future log */
+typedef struct FutureLogData FutureLogData;
+struct FutureLogData {
+  MonthEntry months[MAX_MONTHS + 1];
+  int last_id;
+  int current_id;
+};
 
-  /* Corners */
-  mvaddch(start_y, start_x, ACS_ULCORNER);
-  mvaddch(start_y, start_x + width, ACS_URCORNER);
-  mvaddch(start_y + height, start_x, ACS_LLCORNER);
-  mvaddch(start_y + height, start_x + width, ACS_LRCORNER);
-
-  /* Horizontal lines */
-  int topRow = start_y;
-  int bottomRow = start_y + height;
-  for (int col = start_x + 1; col < start_x + width; col++) {
-    mvaddch(topRow, col, ACS_HLINE);
-    mvaddch(bottomRow, col, ACS_HLINE);
-  }
-
-  /* Vertical lines */
-  int leftCol = start_x;
-  int rightCol = start_x + width;
-  for (int row = start_y + 1; row < start_y + height; row++) {
-    mvaddch(row, leftCol, ACS_VLINE);
-    mvaddch(row, rightCol, ACS_VLINE);
-  }
-}
-
-/* Adds the current_page to the page history stack */
-void AddToPageHistory(CurrentPage *page_history, CurrentPage current_page) {
-  for (int i = PAGE_HISTORY_SIZE; i > 0; i--)
-    page_history[i] = page_history[i - 1];
-
-  page_history[0] = current_page;
-}
-
-/* Return 1 if the given year is a leap year, 0 if not */
-int IsLeapYear(int year) {
-  return ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0));
-}
-
-/* Return the number of days in a month of given year */
-int DaysInMonth(int year, int month) {
-  if (month < 1 || month > 12) return -1;
-
-  int days[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-
-  if (month == 2 && IsLeapYear(year))
-    return 29;
-  else
-    return days[month];
+/* Initialize a future log */
+void InitFutureLog(FutureLogData *future_log) {
+  for (int i = 0; i <= MAX_MONTHS; i++) future_log->months[i].head = NULL;
+  future_log->last_id = 0;
+  future_log->current_id = 0;
 }
 
 /* Add an entry to a specific month */
@@ -95,6 +57,8 @@ void AddEntry(FutureLogData *future_log, int month_index, EntryType type,
   new_entry->text = strdup(text);
   new_entry->date = strdup(date);
   if (deadline != NULL)
+    new_entry->deadline = strdup(deadline);
+  else if (strcmp(deadline, "(null)") != 0)
     new_entry->deadline = strdup(deadline);
   else
     new_entry->deadline = NULL;
@@ -124,6 +88,33 @@ const char *EntryTypeToString(EntryType type) {
       return "UNKNOWN";
   }
   return "UNKNOWN";
+}
+
+/* Display all notes in a specific month */
+void DisplayMonthNotes(const MonthEntry *month, int month_index) {
+  printf("Month %d:\n", month_index);
+  LogEntry *current = month->head;
+  while (current != NULL) {
+    printf("ID: %d\n", current->id);
+    printf("Type: %s\n", EntryTypeToString(current->type));
+    printf("Text: %s\n", current->text);
+    if (current->deadline == NULL) {
+      printf("Date: %s\n\n", current->date);
+    } else if (strcmp(current->deadline, "(null)") != 0) {
+      printf("Date: %s\n", current->date);
+      printf("Deadline: %s\n\n", current->deadline);
+    } else
+      printf("Date: %s\n\n", current->date);
+    current = current->next;
+  }
+  printf("\n");
+}
+
+/* Display all notes in the future log */
+void DisplayFutureLog(const FutureLogData *future_log) {
+  for (int i = 0; i <= MAX_MONTHS; i++)
+    if (future_log->months[i].head != NULL)
+      DisplayMonthNotes(&(future_log->months[i]), i);
 }
 
 /* Free memory allocated for notes in a specific month */
@@ -241,7 +232,8 @@ void DeserializeFromDB(FutureLogData *future_log) {
     const char *type_str = (const char *)sqlite3_column_text(res, 2);
     const char *text = (const char *)sqlite3_column_text(res, 3);
     const char *date = (const char *)sqlite3_column_text(res, 4);
-    const char *deadline = (char *)sqlite3_column_text(res, 5);
+    const char *deadline =
+      (const char *)sqlite3_column_text(res, 5);  // Fetch deadline
 
     EntryType type;
     if (strcmp(type_str, "TASK") == 0) {
@@ -253,13 +245,48 @@ void DeserializeFromDB(FutureLogData *future_log) {
     } else {
       type = NOTE;
     }
-    if (strcmp(deadline, "(null)") == 0) {
-      AddEntry(future_log, month, type, text, date, NULL);
-    } else
-      AddEntry(future_log, month, type, text, date, deadline);
+
+    AddEntry(future_log, month, type, text, date, deadline);  // Pass deadline
   }
-  future_log->current_id = future_log->last_id;
 
   sqlite3_finalize(res);
   sqlite3_close(db);
+}
+
+int main() {
+  FutureLogData future_log;
+  InitFutureLog(&future_log);
+
+  /* Deserialize data from SQLite database */
+  DeserializeFromDB(&future_log);
+  future_log.current_id = future_log.last_id;
+
+  // Adding future log entrys
+  // AddEntry(&future_log, 1, TASK, "Complete project proposal",
+  //         "2024-01-07,04:20", "2024-01-08");
+  // AddEntry(&future_log, 1, EVENT, "Birthday party", "2024-01-15,10:20",
+  // NULL); AddEntry(&future_log, 2, APPOINTMENT, "Dentist appointment",
+  //         "2024-02-12,20:40", NULL);
+
+  // Insert data into the table
+  sqlite3 *db = InitializeDatabase();
+  if (!db) return 1;
+  int rc = CreateTable(db);
+  if (rc != SQLITE_OK) {
+    sqlite3_close(db);
+    return 1;
+  }
+  rc = InsertData(db, &future_log);
+  if (rc != SQLITE_OK) {
+    sqlite3_close(db);
+    return 1;
+  }
+
+  // Displaying the contents of the database
+  DisplayFutureLog(&future_log);
+  sqlite3_close(db);
+
+  FreeFutureLog(&future_log);
+
+  return 0;
 }

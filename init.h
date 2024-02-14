@@ -11,6 +11,9 @@ void InitScreen(void);
 /* Initialize variables */
 ErrorCode InitApp(AppData *app);
 
+/* Initialize a future log */
+void InitFutureLog(FutureLogData *future_log);
+
 /* Initialize a window size */
 Window *InitWindowSize(int start_x, int start_y, int width, int height);
 

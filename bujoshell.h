@@ -24,6 +24,34 @@ typedef enum {
   INVALID_DAY
 } ErrorCode;
 
+/* Defining entry type enum */
+typedef enum { TASK, NOTE, EVENT, APPOINTMENT } EntryType;
+
+/* Defining a structure for a note */
+typedef struct LogEntry LogEntry;
+struct LogEntry {
+  int id;
+  EntryType type;
+  char *date;
+  char *text;
+  char *deadline;
+  struct LogEntry *next;
+};
+
+/* Defining a structure for a month */
+typedef struct MonthEntry MonthEntry;
+struct MonthEntry {
+  LogEntry *head;
+};
+
+/* Defining a structure for the future log */
+typedef struct FutureLogData FutureLogData;
+struct FutureLogData {
+  MonthEntry months[MAX_MONTHS + 1];
+  int last_id;
+  int current_id;
+};
+
 /* Defining the window struct */
 typedef struct Window Window;
 struct Window {
@@ -36,6 +64,7 @@ struct Window {
 typedef struct AppData AppData;
 struct AppData {
   int running;
+  FutureLogData future_log;
 
   int current_hour;
   int current_minute;

@@ -30,6 +30,7 @@ void InitScreen(void) {
 /* Initialize variables */
 ErrorCode InitApp(AppData *app) {
   app->running = 1;
+  InitFutureLog(&app->future_log);
 
   app->current_hour = 0;
   app->current_minute = 0;
@@ -39,7 +40,7 @@ ErrorCode InitApp(AppData *app) {
   app->days_in_month = 0;
 
   app->input_mode = NORMAL;
-  app->insert_buffer = (char *)malloc(sizeof(char) + 1);
+  app->insert_buffer = (char *)calloc(1, sizeof(char) + 1);
   if (app->insert_buffer == NULL) return MALLOC_ERROR;
   app->user_input = 0;
   app->cursor_x = 0;
@@ -56,6 +57,14 @@ ErrorCode InitApp(AppData *app) {
   GetScreenSize(app);
 
   return NO_ERROR;
+}
+
+/* Initialize a future log */
+void InitFutureLog(FutureLogData *future_log) {
+  for (int i = 0; i <= MAX_MONTHS; i++) future_log->months[i].head = NULL;
+  future_log->last_id = 0;
+  future_log->current_id = 0;
+  DeserializeFromDB(future_log);
 }
 
 /* Initialize a window size */
@@ -100,4 +109,20 @@ void EndApp(AppData *app) {
 
   if (app->floating_window != NULL) free(app->floating_window);
   app->floating_window = NULL;
+
+  // Insert data into the table
+  sqlite3 *db = InitializeDatabase();
+  if (!db) return;
+  int rc = CreateTable(db);
+  if (rc != SQLITE_OK) {
+    sqlite3_close(db);
+    return;
+  }
+  rc = InsertData(db, &app->future_log);
+  if (rc != SQLITE_OK) {
+    sqlite3_close(db);
+    return;
+  }
+  sqlite3_close(db);
+  FreeFutureLog(&app->future_log);
 }

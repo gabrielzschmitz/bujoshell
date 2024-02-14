@@ -2,6 +2,7 @@
 #define UTIL_H_
 
 #include <ncurses.h>
+#include <sqlite3.h>
 
 #include "bujoshell.h"
 
@@ -26,5 +27,36 @@ int IsLeapYear(int year);
 
 /* Return the number of days in a month of given year */
 int DaysInMonth(int year, int month);
+
+/* Deserialize data from SQLite database to FutureLogData struct */
+void DeserializeFromDB(FutureLogData *future_log);
+
+/* Insert data into FutureLog table */
+int InsertData(sqlite3 *db, const FutureLogData *future_log);
+
+/* Create FutureLog table */
+int CreateTable(sqlite3 *db);
+
+/* Initialize SQLite database */
+sqlite3 *InitializeDatabase();
+
+/* Callback function for executing SQL queries */
+static int callback(void *NotUsed, int argc, char **argv, char **azColName);
+
+/* Free memory allocated for notes in a specific month */
+void FreeMonthNotes(MonthEntry *month);
+
+/* Free memory allocated for the future log */
+void FreeFutureLog(FutureLogData *future_log);
+
+/* Function to convert EntryType enum to string */
+const char *EntryTypeToString(EntryType type);
+
+/* Add an entry to a specific month */
+void AddEntry(FutureLogData *future_log, int month_index, EntryType type,
+              const char *text, const char *date, const char *deadline);
+
+/* Initialize a future log */
+void InitFutureLog(FutureLogData *future_log);
 
 #endif /* UTIL_H_ */

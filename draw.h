@@ -37,4 +37,12 @@ void DisplayTerminalSizeError(Window *window);
 void DrawVerticalLine(int start_y, int end_height, int center_x,
                       int current_index, int total_count);
 
+/* Display up to max_entries notes in a specific month within the specified
+ * boundaries */
+void DisplayMonthNotes(const MonthEntry *month, int start_x, int start_y,
+                       int end_x, int end_y, int max_entries);
+
+/* Display all notes in the future log */
+void DisplayFutureLog(const FutureLogData *future_log);
+
 #endif /* DRAW_H_ */

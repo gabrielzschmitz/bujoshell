@@ -236,6 +236,10 @@ ErrorCode DrawFutureLog(AppData *app) {
         DrawVerticalLine(start_y, end_height, divider_x, i, number_of_months);
 
       int month_x = (((i * 2 + 1) * space_between_months) / 2);
+      DisplayMonthNotes(&app->future_log.months[i + 1],
+                        (i)*space_between_months + 1, start_y + 9,
+                        (i + 1) * space_between_months, end_height,
+                        end_height - (start_y + 8));
       render_month =
         RenderMonth(app, month_index + 1, month_x - 9, start_y + 1);
       if (render_month != NO_ERROR) return render_month;
@@ -375,4 +379,79 @@ void DrawVerticalLine(int start_y, int end_y, int x, int current_index,
     mvaddch(start_y - 1, x, ACS_TTEE);
     for (int j = start_y; j < end_y + 1; j++) mvaddch(j, x, ACS_VLINE);
   }
+}
+
+/* Display up to max_entries notes in a specific month within the specified
+ * boundaries */
+void DisplayMonthNotes(const MonthEntry *month, int start_x, int start_y,
+                       int end_x, int end_y, int max_entries) {
+  LogEntry *current = month->head;
+  int y = 0;
+  int entry_count = 0;
+
+  while (current != NULL && entry_count < max_entries - 1) {
+    int x = 0;
+    char *symbol = " ";
+
+    switch (current->type) {
+      case TASK:
+        symbol = "";
+        break;
+      case NOTE:
+        symbol = "";
+        break;
+      case EVENT:
+        symbol = "";
+        break;
+      case APPOINTMENT:
+        symbol = "";
+        break;
+    }
+
+    mvprintw(start_y + y, start_x + x, "%s", symbol);
+    x += 2;
+
+    for (int i = 0; current->text[i] != '\0'; i++) {
+      if (start_x + x + i < end_x) {
+        mvprintw(start_y + y, start_x + x + i, "%c", current->text[i]);
+      } else {
+        x = -i;
+        y += 1;
+        if (start_y + y > end_y) {
+          // No space left on the screen, exit the loop
+          return;
+        }
+        mvprintw(start_y + y, start_x + x + i, "%c", current->text[i]);
+      }
+    }
+
+    int text_length = strlen(current->text);
+    int text_end_x = x + text_length;
+
+    if (current->deadline != NULL) {
+      if (start_x + text_end_x + 1 + strlen(current->deadline) + 2 > end_x) {
+        y += 1;
+        if (start_y + y > end_y) {
+          // No space left on the screen, exit the loop
+          return;
+        }
+        mvprintw(start_y + y, start_x, "(%s)", current->deadline);
+      } else {
+        mvprintw(start_y + y, start_x + text_end_x + 1, "(%s)",
+                 current->deadline);
+      }
+    }
+
+    current = current->next;
+    y += 1;
+    entry_count++;
+  }
+  if (entry_count == max_entries - 1) mvprintw(end_y, end_x - 3, "...");
+}
+
+/* Display all notes in the future log */
+void DisplayFutureLog(const FutureLogData *future_log) {
+  for (int i = 0; i <= MAX_MONTHS; i++)
+    if (future_log->months[i].head != NULL)
+      DisplayMonthNotes(&(future_log->months[i]), 0, 0, 0, 0, 0);
 }
