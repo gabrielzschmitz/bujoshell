@@ -31,6 +31,9 @@ int DaysInMonth(int year, int month);
 /* Deserialize data from SQLite database to FutureLogData struct */
 void DeserializeFromDB(FutureLogData *future_log);
 
+/* Delete an entry from the database by ID */
+void DeleteEntryByID(int entry_id);
+
 /* Insert data into FutureLog table */
 int InsertData(sqlite3 *db, const FutureLogData *future_log);
 
@@ -43,6 +46,9 @@ sqlite3 *InitializeDatabase();
 /* Callback function for executing SQL queries */
 static int callback(void *NotUsed, int argc, char **argv, char **azColName);
 
+/* Return the number of entrys in given month */
+int CountMonthEntrys(MonthEntry *month);
+
 /* Free memory allocated for notes in a specific month */
 void FreeMonthNotes(MonthEntry *month);
 
@@ -54,9 +60,24 @@ const char *EntryTypeToString(EntryType type);
 
 /* Add an entry to a specific month */
 void AddEntry(FutureLogData *future_log, int month_index, EntryType type,
-              const char *text, const char *date, const char *deadline);
+              const char *text, const char *date);
 
 /* Initialize a future log */
 void InitFutureLog(FutureLogData *future_log);
+
+/* Returns a string based in the int week day */
+const char *GetDayOfWeek(int day);
+
+/* Returns the amount of strings in array of strings */
+int CountStrings(const char *strings[]);
+
+/* Returns the text from given month and entry_index or NULL if past size */
+char *GetEntryText(MonthEntry *month, int entry_index);
+
+/* Returns the id from a given month and entry_index or -1 if past size */
+int GetEntryId(MonthEntry *month, int entry_index);
+
+/* Remove an entry from the FutureLogData struct by ID */
+void RemoveEntryByID(FutureLogData *future_log, int entry_id);
 
 #endif /* UTIL_H_ */
