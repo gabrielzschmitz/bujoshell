@@ -36,7 +36,23 @@ ErrorCode InsertCharacter(AppData *app, char input);
 /* Function to remove character at cursor and shrink the buffer */
 ErrorCode RemoveCharacter(AppData *app);
 
-/* Handle cursor movement */
-int HandleCursor(AppData *app);
+/* Handle cursor movement at normal mode */
+int HandleNormalCursor(AppData *app);
+
+/* Handle cursor movement at insert mode */
+int HandleInsertCursor(AppData *app);
+
+/* Handle input at popups */
+int HandlePopupInput(AppData *app);
+
+/* Handle all entry inputting */
+ErrorCode InputEntry(AppData *app);
+
+/* Separate all the input entry into the correct variables */
+ErrorCode SeparateEntryVariables(const char *input, char *type, char **text,
+                                 int *dd, int *mm);
+
+/* Return INVALID_INPUT if a function key is detected */
+ErrorCode IgnoreFunctionKeys(AppData *app);
 
 #endif /* INPUT_H_ */
