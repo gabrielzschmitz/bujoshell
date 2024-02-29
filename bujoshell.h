@@ -19,9 +19,10 @@ typedef enum {
   NO_ERROR,
   WINDOW_CREATION_ERROR,
   MALLOC_ERROR,
+  INVALID_INPUT,
   TOO_SMALL_SCREEN,
   INVALID_MONTH,
-  INVALID_DAY
+  INVALID_DAY,
 } ErrorCode;
 
 /* Defining entry type enum */
@@ -34,7 +35,6 @@ struct LogEntry {
   EntryType type;
   char *date;
   char *text;
-  char *deadline;
   struct LogEntry *next;
 };
 
@@ -68,6 +68,7 @@ struct AppData {
 
   int current_hour;
   int current_minute;
+  int current_week_day;
   int current_day;
   int current_month;
   int current_year;
@@ -76,7 +77,18 @@ struct AppData {
   int user_input;
   int cursor_x;
   int cursor_y;
+  int selected_month;
+  int selected_entry;
+  int insert_cursor_x;
+  int insert_cursor_y;
+  int entry_has_date;
+  int entry_type;
+  int entry_day;
+  int entry_month;
   char *insert_buffer;
+  int entry_input;
+  int deletion_popup;
+  int selected_option;
   InputMode input_mode;
 
   CurrentPage page_history[PAGE_HISTORY_SIZE];
