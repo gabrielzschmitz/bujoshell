@@ -34,6 +34,7 @@ ErrorCode InitApp(AppData *app) {
 
   app->current_hour = 0;
   app->current_minute = 0;
+  app->current_week_day = 0;
   app->current_day = 0;
   app->current_month = 0;
   app->current_year = 0;
@@ -42,9 +43,20 @@ ErrorCode InitApp(AppData *app) {
   app->input_mode = NORMAL;
   app->insert_buffer = (char *)calloc(1, sizeof(char) + 1);
   if (app->insert_buffer == NULL) return MALLOC_ERROR;
+  app->entry_input = 0;
+  app->entry_has_date = 1;
+  app->entry_type = 0;
+  app->entry_day = -1;
+  app->entry_month = -1;
   app->user_input = 0;
-  app->cursor_x = 0;
-  app->cursor_y = 0;
+  app->insert_cursor_x = 0;
+  app->insert_cursor_y = 0;
+  app->cursor_x = 1;
+  app->cursor_y = 1;
+  app->selected_month = -1;
+  app->selected_entry = -1;
+  app->deletion_popup = 0;
+  app->selected_option = 0;
 
   for (int i = 0; i < PAGE_HISTORY_SIZE; i++) app->page_history[i] = FUTURE_LOG;
   app->current_future_log = -1;
