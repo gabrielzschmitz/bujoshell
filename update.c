@@ -23,6 +23,11 @@ ErrorCode UpdateApp(AppData *app) {
     if (resetting_floating_window != NO_ERROR) return resetting_floating_window;
   }
 
+  if (app->entry_input < 1) {
+    ErrorCode resetting_floating_window =
+      UpdateWindowSize(&app->floating_window, 0, 0, 0, 0);
+    if (resetting_floating_window != NO_ERROR) return resetting_floating_window;
+  }
   return NO_ERROR;
 }
 
@@ -51,10 +56,18 @@ ErrorCode UpdateTime(AppData *app) {
   app->current_hour = now_tm->tm_hour;
   app->current_minute = now_tm->tm_min;
   app->current_day = now_tm->tm_mday;
+  app->current_week_day = now_tm->tm_wday;
   app->current_month = now_tm->tm_mon + 1;
   app->current_year = now_tm->tm_year + 1900;
   app->days_in_month = DaysInMonth(app->current_year, app->current_month);
 
+  if (app->selected_month == -1) app->selected_month = app->current_month;
+  if (app->selected_entry == -1)
+    app->selected_entry =
+      CountMonthEntrys(&app->future_log.months[app->current_month]) - 1;
+
+  if (app->entry_day == -1) app->entry_day = app->current_day;
+  if (app->entry_month == -1) app->entry_month = app->current_month;
   if (app->current_future_log == -1) {
     if (app->current_month >= 1 && app->current_month <= 3)
       app->current_future_log = 0;
@@ -85,7 +98,7 @@ ErrorCode CreateFloatingWindow(Window **window, int x, int y, int width,
   const int start_y = (*window)->start_y + 1;
 
   for (int i = start_y; i < end_height + 1; i++)
-    for (int j = start_x; j < end_width; j++) mvaddch(i, j, ' ');
+    for (int j = start_x; j < end_width + 1; j++) mvaddch(i, j, ' ');
 
   return NO_ERROR;
 }
