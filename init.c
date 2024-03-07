@@ -30,7 +30,8 @@ void InitScreen(void) {
 /* Initialize variables */
 ErrorCode InitApp(AppData *app) {
   app->running = 1;
-  InitFutureLog(&app->future_log);
+  InitDataLog(&app->future_log, "FutureLog");
+  InitDataLog(&app->monthly_log, "MonthlyLog");
 
   app->current_hour = 0;
   app->current_minute = 0;
@@ -53,6 +54,7 @@ ErrorCode InitApp(AppData *app) {
   app->insert_cursor_y = 0;
   app->cursor_x = 1;
   app->cursor_y = 1;
+  app->selected_day = -1;
   app->selected_month = -1;
   app->selected_entry = -1;
   app->deletion_popup = 0;
@@ -60,6 +62,7 @@ ErrorCode InitApp(AppData *app) {
 
   for (int i = 0; i < PAGE_HISTORY_SIZE; i++) app->page_history[i] = FUTURE_LOG;
   app->current_future_log = -1;
+  app->current_monthly_log = 0;
   app->show_status_bar = 1;
   app->show_key_page = 0;
   app->show_index_page = 0;
@@ -72,11 +75,11 @@ ErrorCode InitApp(AppData *app) {
 }
 
 /* Initialize a future log */
-void InitFutureLog(FutureLogData *future_log) {
-  for (int i = 0; i <= MAX_MONTHS; i++) future_log->months[i].head = NULL;
-  future_log->last_id = 0;
-  future_log->current_id = 0;
-  DeserializeFromDB(future_log);
+void InitDataLog(LogData *data_log, const char *db_name) {
+  for (int i = 0; i <= MAX_MONTHS; i++) data_log->months[i].head = NULL;
+  data_log->last_id = 0;
+  data_log->current_id = 0;
+  DeserializeFromDB(data_log, db_name);
 }
 
 /* Initialize a window size */
@@ -122,19 +125,11 @@ void EndApp(AppData *app) {
   if (app->floating_window != NULL) free(app->floating_window);
   app->floating_window = NULL;
 
-  // Insert data into the table
-  sqlite3 *db = InitializeDatabase();
-  if (!db) return;
-  int rc = CreateTable(db);
-  if (rc != SQLITE_OK) {
-    sqlite3_close(db);
-    return;
-  }
-  rc = InsertData(db, &app->future_log);
-  if (rc != SQLITE_OK) {
-    sqlite3_close(db);
-    return;
-  }
-  sqlite3_close(db);
-  FreeFutureLog(&app->future_log);
+  // Insert data into the tables
+  const char *future_log_db_name = "FutureLog";
+  LogData *future_log_db_data = &app->future_log;
+  SaveDataToDatabase(future_log_db_name, future_log_db_data);
+  const char *monthly_log_db_name = "MonthlyLog";
+  LogData *monthly_log_db_data = &app->monthly_log;
+  SaveDataToDatabase(monthly_log_db_name, monthly_log_db_data);
 }
