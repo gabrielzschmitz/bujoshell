@@ -61,6 +61,7 @@ ErrorCode UpdateTime(AppData *app) {
   app->current_year = now_tm->tm_year + 1900;
   app->days_in_month = DaysInMonth(app->current_year, app->current_month);
 
+  if (app->selected_day == -1) app->selected_day = app->current_day;
   if (app->selected_month == -1) app->selected_month = app->current_month;
   if (app->selected_entry == -1)
     app->selected_entry =
