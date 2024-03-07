@@ -6,6 +6,7 @@
 #define PAGE_HISTORY_SIZE 3
 #define TAB_SIZE          4
 #define MAX_MONTHS        12
+#define MAX_DAYS          31
 #define FPS               60
 
 /* Defining input mode enum */
@@ -33,8 +34,10 @@ typedef struct LogEntry LogEntry;
 struct LogEntry {
   int id;
   EntryType type;
-  char *date;
   char *text;
+  int year;
+  int month;
+  int day;
   struct LogEntry *next;
 };
 
@@ -45,8 +48,8 @@ struct MonthEntry {
 };
 
 /* Defining a structure for the future log */
-typedef struct FutureLogData FutureLogData;
-struct FutureLogData {
+typedef struct LogData LogData;
+struct LogData {
   MonthEntry months[MAX_MONTHS + 1];
   int last_id;
   int current_id;
@@ -64,7 +67,9 @@ struct Window {
 typedef struct AppData AppData;
 struct AppData {
   int running;
-  FutureLogData future_log;
+  LogData future_log;
+  LogData monthly_log;
+  LogData daily_log;
 
   int current_hour;
   int current_minute;
@@ -79,6 +84,7 @@ struct AppData {
   int cursor_y;
   int selected_month;
   int selected_entry;
+  int selected_day;
   int insert_cursor_x;
   int insert_cursor_y;
   int entry_has_date;
@@ -93,6 +99,7 @@ struct AppData {
 
   CurrentPage page_history[PAGE_HISTORY_SIZE];
   int current_future_log;
+  int current_monthly_log;
   Window *main_window;
   Window *floating_window;
   int width, height;

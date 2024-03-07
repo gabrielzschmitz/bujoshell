@@ -8,14 +8,6 @@
 #include "init.h"
 #include "input.h"
 #include "update.h"
-// #include "util.h"
-
-/*
-  functions: FunctionName()
-  variables: variable_name
-  macros: VARIABLE_NAME
-  structs: StructName
-*/
 
 int main(int argc, char **argv) {
   /* Enable Emojis */
@@ -31,7 +23,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Error initializing windows: %d\n", init_app);
     return init_app;
   }
-  // AddEntry(&app.future_log, 2, NOTE, "Cool day", "2024-02-12,20:40", NULL);
   ErrorCode init_windows_result = InitWindows(&app);
   if (init_windows_result != NO_ERROR) {
     endwin();
