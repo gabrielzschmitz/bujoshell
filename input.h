@@ -9,6 +9,7 @@
 #define BACKSPACE 127
 #define ESC       27
 #define ENTER     10
+#define SPACE     ' '
 #define TAB       9
 #define CTRLC     3
 #define CTRLP     16

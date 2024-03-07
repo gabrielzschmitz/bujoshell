@@ -65,38 +65,84 @@ int HandleNormalCursor(AppData *app) {
 }
 
 int HandleSelectedEntry(AppData *app) {
-  int max_entrys =
-    CountMonthEntrys(&app->future_log.months[app->selected_month]) - 1;
-  int new_max = 0;
-  switch (app->user_input) {
-    case KEY_LEFT:
-    case 'h':
-      if (app->selected_month > 0) app->selected_month--;
-      new_max =
-        CountMonthEntrys(&app->future_log.months[app->selected_month]) - 1;
-      if (app->selected_entry > new_max) app->selected_entry = new_max;
-      return 0;
-      break;
-    case KEY_DOWN:
-    case 'j':
-      if (app->selected_entry < max_entrys) app->selected_entry++;
-      return 0;
-      break;
-    case KEY_UP:
-    case 'k':
-      if (app->selected_entry > 0) app->selected_entry--;
-      return 0;
-      break;
-    case KEY_RIGHT:
-    case 'l':
-      if (app->selected_month < 12) app->selected_month++;
-      new_max =
-        CountMonthEntrys(&app->future_log.months[app->selected_month]) - 1;
-      if (app->selected_entry > new_max) app->selected_entry = new_max;
-      return 0;
-      break;
-    default:
-      break;
+  const int number_of_months = (app->width >= 139) ? 6 : 3;
+  int start_month = 0;
+  if (number_of_months == 6)
+    start_month = (app->current_future_log * 3 >= 6) ? 6 : 0;
+  else
+    start_month = app->current_future_log * 3;
+
+  if (app->page_history[0] == FUTURE_LOG) {
+    int max_entrys =
+      CountMonthEntrys(&app->future_log.months[app->selected_month]) - 1;
+    int new_max = 0;
+    switch (app->user_input) {
+      case KEY_LEFT:
+      case 'h':
+        if (app->selected_month > start_month + 1) app->selected_month--;
+        new_max =
+          CountMonthEntrys(&app->future_log.months[app->selected_month]) - 1;
+        if (app->selected_entry > new_max) app->selected_entry = new_max;
+        return 0;
+        break;
+      case KEY_DOWN:
+      case 'j':
+        if (app->selected_entry < max_entrys) app->selected_entry++;
+        return 0;
+        break;
+      case KEY_UP:
+      case 'k':
+        if (app->selected_entry > 0) app->selected_entry--;
+        return 0;
+        break;
+      case KEY_RIGHT:
+      case 'l':
+        if (app->selected_month < start_month + number_of_months)
+          app->selected_month++;
+        new_max =
+          CountMonthEntrys(&app->future_log.months[app->selected_month]) - 1;
+        if (app->selected_entry > new_max) app->selected_entry = new_max;
+        return 0;
+        break;
+      default:
+        break;
+    }
+  } else if (app->page_history[0] == MONTHLY_LOG &&
+             app->current_monthly_log == 0) {
+    int max_entrys = app->days_in_month;
+    switch (app->user_input) {
+      case KEY_DOWN:
+      case 'j':
+        if (app->selected_day < max_entrys) app->selected_day++;
+        return 0;
+        break;
+      case KEY_UP:
+      case 'k':
+        if (app->selected_day > 1) app->selected_day--;
+        return 0;
+        break;
+      default:
+        break;
+    }
+  } else if (app->page_history[0] == MONTHLY_LOG &&
+             app->current_monthly_log == 1) {
+    int max_entrys = CountMonthEntrysWithoutDay(
+                       &app->monthly_log.months[app->selected_month]) -
+                     1;
+    switch (app->user_input) {
+      case KEY_DOWN:
+      case 'j':
+        if (app->selected_entry < max_entrys) app->selected_entry++;
+        return 0;
+        break;
+      case KEY_UP:
+      case 'k':
+        if (app->selected_entry > 0) app->selected_entry--;
+        return 0;
+        break;
+      default:
+        break;
+    }
   }
   return 1;
 }
@@ -156,11 +202,25 @@ int HandlePopupInput(AppData *app) {
     case ENTER:
       app->deletion_popup = 0;
       if (app->selected_option == 1) {
-        int id_to_delete = GetEntryId(
-          &app->future_log.months[app->selected_month], app->selected_entry);
-        DeleteEntryByID(id_to_delete);
-        RemoveEntryByID(&app->future_log, id_to_delete);
-        if (app->selected_entry != 0) app->selected_entry--;
+        if (app->page_history[0] == FUTURE_LOG) {
+          int id_to_delete = GetEntryId(
+            &app->future_log.months[app->selected_month], app->selected_entry);
+          DeleteEntryByID(id_to_delete, "FutureLog");
+          RemoveEntryByID(&app->future_log, app->selected_month, id_to_delete);
+          if (app->selected_entry != 0) app->selected_entry--;
+        } else if (app->page_history[0] == MONTHLY_LOG) {
+          int id_to_delete = -1;
+          if (app->current_monthly_log == 0)
+            id_to_delete =
+              GetEntryIdByDay(&app->monthly_log.months[app->current_month],
+                              app->current_month, app->selected_day);
+          else
+            id_to_delete =
+              GetEntryId(&app->monthly_log.months[app->current_month],
+                         app->selected_entry);
+          DeleteEntryByID(id_to_delete, "MonthlyLog");
+          RemoveEntryByID(&app->monthly_log, app->current_month, id_to_delete);
+        }
       }
       return 0;
       break;
@@ -180,7 +240,6 @@ ErrorCode HandleNormalMode(AppData *app) {
     if (HandlePopupInput(app)) return NO_ERROR;
   } else if (app->entry_input == 0) {
     if (!HandleSelectedEntry(app)) return NO_ERROR;
-    // if (!HandleNormalCursor(app)) return NO_ERROR;
     switch (app->user_input) {
       case ESC:
         if (getch() != -1) break;
@@ -191,13 +250,17 @@ ErrorCode HandleNormalMode(AppData *app) {
         break;
       case '2':
       case 'f':
-        if (*current_page != FUTURE_LOG)
+        if (*current_page != FUTURE_LOG) {
           AddToPageHistory(current_page, FUTURE_LOG);
+          app->selected_entry = 0;
+        }
         break;
       case '3':
       case 'm':
-        if (*current_page != MONTHLY_LOG)
+        if (*current_page != MONTHLY_LOG) {
           AddToPageHistory(current_page, MONTHLY_LOG);
+          app->selected_entry = 0;
+        }
         break;
       case '4':
       case 'd':
@@ -206,22 +269,60 @@ ErrorCode HandleNormalMode(AppData *app) {
         break;
       case 'N':
         if (*current_page == FUTURE_LOG)
-          if (app->current_future_log > 0) app->current_future_log -= 1;
+          if (app->current_future_log > 0) {
+            app->current_future_log -= 1;
+            app->selected_month -= 3;
+            app->selected_entry = 0;
+          }
         break;
       case 'n':
         if (*current_page == FUTURE_LOG)
-          if (app->current_future_log < 3) app->current_future_log += 1;
+          if (app->current_future_log < 3) {
+            app->current_future_log += 1;
+            app->selected_month += 3;
+            app->selected_entry = 0;
+          }
         break;
       case 'a':
         app->entry_input = 1;
         app->entry_month = app->selected_month;
         break;
+      case SPACE:
+        if (app->page_history[0] == MONTHLY_LOG) {
+          if (app->selected_entry > 0)
+            app->selected_entry =
+              CountMonthEntrysWithoutDay(
+                &app->monthly_log.months[app->selected_month]) -
+              1;
+          else
+            app->selected_entry = 0;
+          app->current_monthly_log ^= 1;
+        }
+        break;
       case 'r':
-        if (app->deletion_popup != 1 &&
-            CountMonthEntrys(&app->future_log.months[app->selected_month]) >
-              0) {
-          app->selected_option = 0;
-          app->deletion_popup = 1;
+        if (app->page_history[0] == FUTURE_LOG) {
+          if (app->deletion_popup != 1 &&
+              CountMonthEntrys(&app->future_log.months[app->selected_month]) >
+                0) {
+            app->selected_option = 0;
+            app->deletion_popup = 1;
+          }
+        } else if (app->page_history[0] == MONTHLY_LOG &&
+                   app->current_monthly_log == 0) {
+          if (app->deletion_popup != 1 &&
+              GetEntryIdByDay(&app->monthly_log.months[app->current_month],
+                              app->current_month, app->selected_day) != -1) {
+            app->selected_option = 0;
+            app->deletion_popup = 1;
+          }
+        } else if (app->page_history[0] == MONTHLY_LOG &&
+                   app->current_monthly_log == 1) {
+          if (app->deletion_popup != 1 &&
+              GetEntryId(&app->monthly_log.months[app->current_month],
+                         app->selected_entry) != -1) {
+            app->selected_option = 0;
+            app->deletion_popup = 1;
+          }
         }
         break;
       case 'i':
@@ -248,6 +349,18 @@ ErrorCode HandleNormalMode(AppData *app) {
     }
   } else {
     switch (app->user_input) {
+      case SPACE:
+        if (app->page_history[0] == MONTHLY_LOG) {
+          if (app->selected_entry > 0)
+            app->selected_entry =
+              CountMonthEntrysWithoutDay(
+                &app->monthly_log.months[app->selected_month]) -
+              1;
+          else
+            app->selected_entry = 0;
+          app->current_monthly_log ^= 1;
+        }
+        break;
       case KEY_LEFT:
       case 'h':
         if (app->entry_type > 0 && app->entry_input == 1) app->entry_type -= 1;
@@ -301,15 +414,19 @@ ErrorCode HandleNormalMode(AppData *app) {
           app->input_mode = NORMAL;
         } else if (app->entry_input == 4) {
           if (app->entry_has_date == 1) {
-            char date[6];
-            snprintf(date, 6, "%02d/%02d", app->entry_day, app->entry_month);
-            AddEntry(&app->future_log, app->entry_month, app->entry_type,
-                     app->insert_buffer, date);
+            if (app->page_history[0] == FUTURE_LOG)
+              AddEntry(&app->future_log, app->entry_type, app->insert_buffer,
+                       app->current_year, app->entry_month, app->entry_day);
+            else if (app->page_history[0] == MONTHLY_LOG)
+              AddEntry(&app->monthly_log, app->entry_type, app->insert_buffer,
+                       app->current_year, app->entry_month, app->entry_day);
           } else {
-            char date[3];
-            snprintf(date, 3, "%02d", app->entry_month);
-            AddEntry(&app->future_log, app->entry_month, app->entry_type,
-                     app->insert_buffer, date);
+            if (app->page_history[0] == FUTURE_LOG)
+              AddEntry(&app->future_log, app->entry_type, app->insert_buffer,
+                       app->current_year, app->entry_month, -1);
+            else if (app->page_history[0] == MONTHLY_LOG)
+              AddEntry(&app->monthly_log, app->entry_type, app->insert_buffer,
+                       app->current_year, app->entry_month, -1);
           }
           app->entry_input = 0;
           app->entry_day = -1;
@@ -573,20 +690,12 @@ ErrorCode InputEntry(AppData *app) {
     char *text;
     int dd, mm;
     SeparateEntryVariables(app->insert_buffer, &type, &text, &dd, &mm);
-
-    char *date = (char *)malloc(sizeof(char) * 6);
-    if (dd != -1 && mm != -1)
-      snprintf(date, 6, "%02d/%02d", dd, mm);
-    else {
-      free(date);
-      date = NULL;
-    }
-    AddEntry(&app->future_log, app->current_month, type, text, date);
+    AddEntry(&app->future_log, type, text, app->current_year, dd, mm);
 
     free(text);
-    free(date);
     free(app->insert_buffer);
     app->insert_buffer = (char *)calloc(1, sizeof(char) + 1);
+
     app->input_mode = NORMAL;
     app->insert_cursor_x = 0;
     app->selected_entry =
