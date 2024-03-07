@@ -27,9 +27,18 @@ ErrorCode RenderMonth(AppData *app, int month, int start_x, int start_y,
 /* Display the monthly log page */
 ErrorCode DrawMonthlyLog(AppData *app);
 
+/* Display up to max_entries notes in a specific month within the specified
+ * boundaries */
+void DisplayMonthLogEntrys(AppData *app, const MonthEntry *month, int start_x,
+                           int start_y, int end_x);
+
 /* Display the days of the current month in a vertical line
  * at the speficied location */
-ErrorCode RenderDays(AppData *app, int start_x, int start_y, int day_of_weak);
+ErrorCode RenderDays(AppData *app, int start_x, int start_y, int day_of_weak,
+                     int end_x);
+
+ErrorCode RenderTasks(AppData *app, const MonthEntry *month, int start_x,
+                      int start_y, int end_x);
 
 /* Display terminal size error */
 void DisplayTerminalSizeError(Window *window);
@@ -46,9 +55,6 @@ void DisplayEntryOptions(const int start_x, const int start_y, const char type);
 void DisplayMonthNotes(AppData *app, const MonthEntry *month, int month_index,
                        int start_x, int start_y, int end_x, int end_y,
                        int max_entries);
-
-/* Display all notes in the future log */
-void DisplayFutureLog(const FutureLogData *future_log);
 
 /* Display the daily log page */
 ErrorCode DrawDailyLog(AppData *app);

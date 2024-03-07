@@ -1,6 +1,7 @@
 #include "draw.h"
 
 #include <ncurses.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -12,7 +13,7 @@
 
 /* Print at screen */
 ErrorCode DrawScreen(AppData *app) {
-  erase();
+  clear();
 
   ErrorCode draw_screen = NO_ERROR;
   draw_screen = DrawFutureLog(app);
@@ -340,8 +341,12 @@ ErrorCode DrawMonthlyLog(AppData *app) {
     mvprintw(end_height, end_width - 1, "%02d", 3);
 
     ErrorCode render_days =
-      RenderDays(app, start_x + 2, start_y + 1, time_info->tm_wday);
+      RenderDays(app, start_x + 2, start_y + 1, time_info->tm_wday, middle_x);
     if (render_days != NO_ERROR) return render_days;
+    ErrorCode render_tasks =
+      RenderTasks(app, &app->monthly_log.months[app->current_month],
+                  middle_x + 2, start_y + 1, end_width);
+    if (render_days != NO_ERROR) return render_tasks;
 
     DrawVerticalLine(start_y, end_height, middle_x, 0, 1, app->show_status_bar);
   }
@@ -349,9 +354,79 @@ ErrorCode DrawMonthlyLog(AppData *app) {
   return NO_ERROR;
 }
 
+/* Display the tasks of the current month at the speficied location */
+ErrorCode RenderTasks(AppData *app, const MonthEntry *month, int start_x,
+                      int start_y, int end_x) {
+  LogEntry *current = month->head;
+
+  if (current == NULL) {
+    SetColor(COLOR_BLACK, COLOR_WHITE, A_BOLD);
+    for (int i = start_x; i < end_x; i++)
+      mvaddch(start_y + app->selected_day - 1, i, ' ');
+  }
+  int entry_index = 0;
+  while (current != NULL) {
+    if (current->day == -1) {
+      int length = strlen(current->text);
+      if (entry_index == app->selected_entry)
+        SetColor(COLOR_BLACK, COLOR_WHITE, A_BOLD);
+      else
+        SetColor(COLOR_WHITE, NO_COLOR, A_BOLD);
+      mvprintw(start_y + entry_index, start_x, "%.*s", end_x - start_x,
+               current->text);
+      if (length > end_x - start_x)
+        mvprintw(start_y + entry_index, end_x - 3, "...");
+      entry_index += 1;
+    }
+    current = current->next;
+  }
+  return NO_ERROR;
+}
+
+/* Display up to max_entries notes in a specific month within the specified
+ * boundaries */
+void DisplayMonthLogEntrys(AppData *app, const MonthEntry *month, int start_x,
+                           int start_y, int end_x) {
+  LogEntry *current = month->head;
+
+  if (current == NULL) {
+    SetColor(COLOR_BLACK, COLOR_WHITE, A_BOLD);
+    for (int i = start_x; i < end_x; i++)
+      mvaddch(start_y + app->selected_day - 1, i, ' ');
+  }
+  int empty_days[MAX_DAYS + 1] = {
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  };
+  while (current != NULL) {
+    if (current->day != -1) {
+      int length = strlen(current->text);
+      if (current->day == app->selected_day)
+        SetColor(COLOR_BLACK, COLOR_WHITE, A_BOLD);
+      else
+        SetColor(COLOR_WHITE, NO_COLOR, A_BOLD);
+      mvprintw(start_y + current->day - 1, start_x, "%.*s", end_x - start_x,
+               current->text);
+      for (int i = start_x + length; i < end_x; i++)
+        mvaddch(start_y + app->selected_day - 1, i, ' ');
+      if (length > end_x - start_x)
+        mvprintw(start_y + current->day - 1, end_x - 3, "...");
+
+      empty_days[current->day] = 0;
+    }
+    current = current->next;
+  }
+  if (empty_days[app->selected_day] == 1) {
+    SetColor(COLOR_BLACK, COLOR_WHITE, A_BOLD);
+    for (int i = start_x; i < end_x; i++)
+      mvaddch(start_y + app->selected_day - 1, i, ' ');
+  }
+}
+
 /* Display the days of the current month in a vertical line
  * at the speficied location */
-ErrorCode RenderDays(AppData *app, int start_x, int start_y, int day_of_week) {
+ErrorCode RenderDays(AppData *app, int start_x, int start_y, int day_of_week,
+                     int end_x) {
   if (day_of_week < 0 || day_of_week > 6) return INVALID_DAY;
   const char *week_days[] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
 
@@ -361,6 +436,8 @@ ErrorCode RenderDays(AppData *app, int start_x, int start_y, int day_of_week) {
     mvprintw(start_y + i - 1, start_x, "%02d %s", i,
              week_days[(day_of_week + i - 1) % 7]);
   }
+  DisplayMonthLogEntrys(app, &app->monthly_log.months[app->current_month],
+                        start_x + 6, start_y, end_x);
   return NO_ERROR;
 }
 
@@ -476,13 +553,15 @@ void DisplayMonthNotes(AppData *app, const MonthEntry *month, int month_index,
 
     int text_length = strlen(current->text);
     int text_end_x = x + text_length;
-    if (strlen(current->date) > 2) {
-      if (start_x + text_end_x + 1 + strlen(current->date) + 2 > end_x) {
+    if (current->day != -1) {
+      if (start_x + text_end_x + 1 + 5 + 2 > end_x) {
         y += 1;
         if (start_y + y > end_y) break;
-        mvprintw(start_y + y, start_x, "(%s)", current->date);
+        mvprintw(start_y + y, start_x, "(%02d/%02d)", current->day,
+                 current->month);
       } else
-        mvprintw(start_y + y, start_x + text_end_x, " (%s)", current->date);
+        mvprintw(start_y + y, start_x + text_end_x, " (%02d/%02d)",
+                 current->day, current->month);
     }
     current = current->next;
     y += 1;
@@ -661,8 +740,20 @@ ErrorCode DisplayDeletionPopup(AppData *app) {
     mvprintw(start_y + 2, start_x + 15, "DELETE");
 
     SetColor(COLOR_WHITE, NO_COLOR, A_BOLD);
-    char *entry_text = GetEntryText(
-      &app->future_log.months[app->selected_month], app->selected_entry);
+    char *entry_text;
+    if (app->page_history[0] == FUTURE_LOG)
+      entry_text = GetEntryText(&app->future_log.months[app->selected_month],
+                                app->selected_entry);
+    else if (app->page_history[0] == MONTHLY_LOG) {
+      if (app->current_monthly_log == 0)
+        entry_text =
+          GetEntryTextByDay(&app->monthly_log.months[app->selected_month],
+                            app->selected_month, app->selected_day);
+      else if (app->current_monthly_log == 1)
+        entry_text = GetEntryText(&app->monthly_log.months[app->selected_month],
+                                  app->selected_entry);
+    }
+
     if (entry_text != NULL) {
       int text_length = strlen(entry_text);
       if (text_length > 25) text_length = 25;
