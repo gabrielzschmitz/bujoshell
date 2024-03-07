@@ -28,17 +28,17 @@ int IsLeapYear(int year);
 /* Return the number of days in a month of given year */
 int DaysInMonth(int year, int month);
 
-/* Deserialize data from SQLite database to FutureLogData struct */
-void DeserializeFromDB(FutureLogData *future_log);
+/* Deserialize data from SQLite database to LogData struct */
+void DeserializeFromDB(LogData *data_log, const char *db_name);
 
 /* Delete an entry from the database by ID */
-void DeleteEntryByID(int entry_id);
+void DeleteEntryByID(int entry_id, const char *db_name);
 
-/* Insert data into FutureLog table */
-int InsertData(sqlite3 *db, const FutureLogData *future_log);
+/* Insert data into Log table */
+int InsertData(sqlite3 *db, const LogData *data_log, const char *db_name);
 
-/* Create FutureLog table */
-int CreateTable(sqlite3 *db);
+/* Create database table with given name */
+int CreateTable(sqlite3 *db, const char *table_name);
 
 /* Initialize SQLite database */
 sqlite3 *InitializeDatabase();
@@ -49,21 +49,24 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName);
 /* Return the number of entrys in given month */
 int CountMonthEntrys(MonthEntry *month);
 
+/* Return the number of entrys in given month without day */
+int CountMonthEntrysWithoutDay(MonthEntry *month);
+
 /* Free memory allocated for notes in a specific month */
 void FreeMonthNotes(MonthEntry *month);
 
-/* Free memory allocated for the future log */
-void FreeFutureLog(FutureLogData *future_log);
+/* Free memory allocated for a data log */
+void FreeLog(LogData *data_log);
 
 /* Function to convert EntryType enum to string */
 const char *EntryTypeToString(EntryType type);
 
-/* Add an entry to a specific month */
-void AddEntry(FutureLogData *future_log, int month_index, EntryType type,
-              const char *text, const char *date);
+/* Converts string entry type to enum entry type */
+EntryType StringtoEntryType(const char *type_str);
 
-/* Initialize a future log */
-void InitFutureLog(FutureLogData *future_log);
+/* Add an entry to a specific month */
+void AddEntry(LogData *data_log, EntryType type, const char *text,
+              const int year, const int month, const int day);
 
 /* Returns a string based in the int week day */
 const char *GetDayOfWeek(int day);
@@ -71,13 +74,22 @@ const char *GetDayOfWeek(int day);
 /* Returns the amount of strings in array of strings */
 int CountStrings(const char *strings[]);
 
-/* Returns the text from given month and entry_index or NULL if past size */
+/* Returns the text from given month and entry_index or NULL if dont find */
 char *GetEntryText(MonthEntry *month, int entry_index);
 
-/* Returns the id from a given month and entry_index or -1 if past size */
+/* Returns the text from given month and day or NULL if dont find */
+char *GetEntryTextByDay(MonthEntry *month, int n_month, int day);
+
+/* Returns the id from a given month and entry_index or -1 if dont find */
 int GetEntryId(MonthEntry *month, int entry_index);
 
-/* Remove an entry from the FutureLogData struct by ID */
-void RemoveEntryByID(FutureLogData *future_log, int entry_id);
+/* Returns the id from a given month and day or -1 if dont find */
+int GetEntryIdByDay(MonthEntry *month, int n_month, int day);
+
+/* Remove an entry from the LogData struct by ID */
+void RemoveEntryByID(LogData *data_log, int month, int entry_id);
+
+/* Save given struct data to a given database created if non existed*/
+void SaveDataToDatabase(const char *db_name, LogData *db_data);
 
 #endif /* UTIL_H_ */

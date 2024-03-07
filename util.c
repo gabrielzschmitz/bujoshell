@@ -2,6 +2,7 @@
 
 #include <ncurses.h>
 #include <sqlite3.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -79,10 +80,10 @@ int DaysInMonth(int year, int month) {
 }
 
 /* Add an entry to a specific month */
-void AddEntry(FutureLogData *future_log, int month_index, EntryType type,
-              const char *text, const char *date) {
-  future_log->current_id += 1;
-  int id = future_log->current_id;
+void AddEntry(LogData *data_log, EntryType type, const char *text,
+              const int year, const int month, const int day) {
+  data_log->current_id += 1;
+  int id = data_log->current_id;
 
   LogEntry *new_entry = (LogEntry *)malloc(sizeof(LogEntry));
   if (new_entry == NULL) {
@@ -93,13 +94,15 @@ void AddEntry(FutureLogData *future_log, int month_index, EntryType type,
   new_entry->id = id;
   new_entry->type = type;
   new_entry->text = strdup(text);
-  new_entry->date = strdup(date);
+  new_entry->year = year;
+  new_entry->month = month;
+  new_entry->day = day;
   new_entry->next = NULL;
 
-  if (future_log->months[month_index].head == NULL)
-    future_log->months[month_index].head = new_entry;
+  if (data_log->months[month].head == NULL)
+    data_log->months[month].head = new_entry;
   else {
-    LogEntry *current = future_log->months[month_index].head;
+    LogEntry *current = data_log->months[month].head;
     while (current->next != NULL) current = current->next;
     current->next = new_entry;
   }
@@ -134,6 +137,18 @@ int CountMonthEntrys(MonthEntry *month) {
   return entrys_count;
 }
 
+/* Return the number of entrys in given month without day */
+int CountMonthEntrysWithoutDay(MonthEntry *month) {
+  int entrys_count = 0;
+  LogEntry *current = month->head;
+  while (current != NULL) {
+    if (current->day == -1) entrys_count += 1;
+    LogEntry *temp = current;
+    current = current->next;
+  }
+  return entrys_count;
+}
+
 /* Free memory allocated for notes in a specific month */
 void FreeMonthNotes(MonthEntry *month) {
   LogEntry *current = month->head;
@@ -141,24 +156,22 @@ void FreeMonthNotes(MonthEntry *month) {
     LogEntry *temp = current;
     current = current->next;
     free(temp->text);
-    free(temp->date);
     free(temp);
   }
 }
 
-/* Free memory allocated for the future log */
-void FreeFutureLog(FutureLogData *future_log) {
+/* Free memory allocated for a data log */
+void FreeLog(LogData *data_log) {
   for (int i = 0; i <= MAX_MONTHS; i++) {
-    FreeMonthNotes(&(future_log->months[i]));
+    FreeMonthNotes(&(data_log->months[i]));
   }
 }
 
 /* Callback function for executing SQL queries */
 static int callback(void *NotUsed, int argc, char **argv, char **azColName) {
   int i;
-  for (i = 0; i < argc; i++) {
+  for (i = 0; i < argc; i++)
     printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-  }
   printf("\n");
   return 0;
 }
@@ -177,37 +190,49 @@ sqlite3 *InitializeDatabase() {
   return db;
 }
 
-/* Create FutureLog table */
-int CreateTable(sqlite3 *db) {
+/* Create database table with given name */
+int CreateTable(sqlite3 *db, const char *table_name) {
   char *zErrMsg = 0;
-  const char *sql =
-    "CREATE TABLE IF NOT EXISTS FutureLog (ID INTEGER PRIMARY KEY "
-    "AUTOINCREMENT, Month INTEGER, Type TEXT, Text TEXT, Date TEXT);";
+  const char *sqlTemplate =
+    "CREATE TABLE IF NOT EXISTS %s (ID INTEGER PRIMARY KEY "
+    "AUTOINCREMENT, Type TEXT, Text TEXT, Year TEXT, Month TEXT, Day TEXT);";
+
+  int sqlSize = strlen(sqlTemplate) + strlen(table_name) + 1;
+  char *sql = malloc(sqlSize);
+  if (sql == NULL) {
+    fprintf(stderr, "Memory allocation error\n");
+    return SQLITE_ERROR;
+  }
+  snprintf(sql, sqlSize, sqlTemplate, table_name);
+
   int rc = sqlite3_exec(db, sql, callback, 0, &zErrMsg);
   if (rc != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
+    free(sql);
     return rc;
   }
+
+  free(sql);
   return SQLITE_OK;
 }
 
-/* Insert data into FutureLog table */
-int InsertData(sqlite3 *db, const FutureLogData *future_log) {
+/* Insert data into Log table */
+int InsertData(sqlite3 *db, const LogData *data_log, const char *db_name) {
   char *zErrMsg = 0;
   int rc;
 
   for (int i = 0; i <= MAX_MONTHS; i++) {
-    LogEntry *current = future_log->months[i].head;
+    LogEntry *current = data_log->months[i].head;
     while (current != NULL) {
-      if (current->id > future_log->last_id) {
+      if (current->id > data_log->last_id) {
         char insert_sql[512];
         sprintf(insert_sql,
-                "INSERT INTO FutureLog (ID, Month, Type, Text, Date) "
+                "INSERT INTO %s (ID, Type, Text, Year, Month, Day) "
                 "VALUES "
-                "(%d, %d, '%s', '%s', '%s');",
-                current->id, i, EntryTypeToString(current->type), current->text,
-                current->date);
+                "(%d, '%s', '%s', %d, %d, %d);",
+                db_name, current->id, EntryTypeToString(current->type),
+                current->text, current->year, current->month, current->day);
         rc = sqlite3_exec(db, insert_sql, callback, 0, &zErrMsg);
         if (rc != SQLITE_OK) {
           fprintf(stderr, "SQL error: %s\n", zErrMsg);
@@ -221,8 +246,22 @@ int InsertData(sqlite3 *db, const FutureLogData *future_log) {
   return SQLITE_OK;
 }
 
-/* Deserialize data from SQLite database to FutureLogData struct */
-void DeserializeFromDB(FutureLogData *future_log) {
+/* Converts string entry type to enum entry type */
+EntryType StringtoEntryType(const char *type_str) {
+  EntryType type;
+  if (strcmp(type_str, "TASK") == 0)
+    type = TASK;
+  else if (strcmp(type_str, "EVENT") == 0)
+    type = EVENT;
+  else if (strcmp(type_str, "APPOINTMENT") == 0)
+    type = APPOINTMENT;
+  else
+    type = NOTE;
+  return type;
+}
+
+/* Deserialize data from SQLite database to LogData struct */
+void DeserializeFromDB(LogData *data_log, const char *db_name) {
   sqlite3 *db;
   sqlite3_stmt *res;
   int rc;
@@ -230,8 +269,9 @@ void DeserializeFromDB(FutureLogData *future_log) {
   db = InitializeDatabase();
   if (!db) return;
 
-  const char *sql = "SELECT * FROM FutureLog";
-  rc = sqlite3_prepare_v2(db, sql, -1, &res, 0);
+  char sql_query[512];
+  sprintf(sql_query, "SELECT * FROM %s;", db_name);
+  rc = sqlite3_prepare_v2(db, sql_query, -1, &res, 0);
 
   if (rc != SQLITE_OK) {
     sqlite3_close(db);
@@ -239,39 +279,26 @@ void DeserializeFromDB(FutureLogData *future_log) {
   }
 
   while (sqlite3_step(res) == SQLITE_ROW) {
-    int id = sqlite3_column_int(res, 0);
-    if (id > future_log->last_id) {
-      future_log->last_id = id;
-    }
+    const int id = sqlite3_column_int(res, 0);
+    const char *type_str = (const char *)sqlite3_column_text(res, 1);
+    const char *text = (const char *)sqlite3_column_text(res, 2);
+    const int year = sqlite3_column_int(res, 3);
+    const int month = sqlite3_column_int(res, 4);
+    const int day = sqlite3_column_int(res, 5);
 
-    int month = sqlite3_column_int(res, 1);
-    const char *type_str = (const char *)sqlite3_column_text(res, 2);
-    const char *text = (const char *)sqlite3_column_text(res, 3);
-    const char *date = (const char *)sqlite3_column_text(res, 4);
+    if (id > data_log->last_id) data_log->last_id = id;
 
-    EntryType type;
-    if (strcmp(type_str, "TASK") == 0) {
-      type = TASK;
-    } else if (strcmp(type_str, "EVENT") == 0) {
-      type = EVENT;
-    } else if (strcmp(type_str, "APPOINTMENT") == 0) {
-      type = APPOINTMENT;
-    } else {
-      type = NOTE;
-    }
-    if (strcmp(date, "(null)") == 0) {
-      AddEntry(future_log, month, type, text, NULL);
-    } else
-      AddEntry(future_log, month, type, text, date);
+    EntryType type = StringtoEntryType(type_str);
+    AddEntry(data_log, type, text, year, month, day);
   }
-  future_log->current_id = future_log->last_id;
+  data_log->current_id = data_log->last_id;
 
   sqlite3_finalize(res);
   sqlite3_close(db);
 }
 
 /* Delete an entry from the database by ID */
-void DeleteEntryByID(int entry_id) {
+void DeleteEntryByID(int entry_id, const char *db_name) {
   sqlite3 *db;
   int rc;
 
@@ -280,7 +307,7 @@ void DeleteEntryByID(int entry_id) {
 
   // Construct the SQL query to delete the entry with the given ID
   char delete_sql[256];
-  sprintf(delete_sql, "DELETE FROM FutureLog WHERE ID = %d;", entry_id);
+  sprintf(delete_sql, "DELETE FROM %s WHERE ID = %d;", db_name, entry_id);
   char *zErrMsg = 0;
 
   // Execute the SQL query
@@ -329,6 +356,22 @@ char *GetEntryText(MonthEntry *month, int entry_index) {
   return selected_entry;
 }
 
+/* Returns the text from given month and day or NULL if dont find */
+char *GetEntryTextByDay(MonthEntry *month, int n_month, int day) {
+  char *selected_entry = NULL;
+  LogEntry *current = month->head;
+  char date[3];
+  char full_date[6];
+  while (current != NULL) {
+    if (current->month == n_month && current->day == day) {
+      selected_entry = strdup(current->text);
+      break;
+    }
+    current = current->next;
+  }
+  return selected_entry;
+}
+
 /* Returns the id from a given month and entry_index or -1 if past size */
 int GetEntryId(MonthEntry *month, int entry_index) {
   int selected_entry = -1;
@@ -347,25 +390,56 @@ int GetEntryId(MonthEntry *month, int entry_index) {
   return selected_entry;
 }
 
-/* Remove an entry from the FutureLogData struct by ID */
-void RemoveEntryByID(FutureLogData *future_log, int entry_id) {
-  for (int i = 0; i <= MAX_MONTHS; i++) {
-    LogEntry *current = future_log->months[i].head;
-    LogEntry *prev = NULL;
-
-    while (current != NULL) {
-      if (current->id == entry_id) {
-        if (prev != NULL)
-          prev->next = current->next;
-        else
-          future_log->months[i].head = current->next;
-        free(current->date);
-        free(current->text);
-        free(current);
-        return;
-      }
-      prev = current;
-      current = current->next;
+/* Returns the id from a given month and day or -1 if dont find */
+int GetEntryIdByDay(MonthEntry *month, int n_month, int day) {
+  int selected_entry = -1;
+  LogEntry *current = month->head;
+  char date[3];
+  char full_date[6];
+  while (current != NULL) {
+    if (current->month == n_month && current->day == day) {
+      selected_entry = current->id;
+      break;
     }
+    current = current->next;
   }
+  return selected_entry;
+}
+
+/* Remove an entry from the LogData struct by ID */
+void RemoveEntryByID(LogData *data_log, int month, int entry_id) {
+  LogEntry *current = data_log->months[month].head;
+  LogEntry *prev = NULL;
+
+  while (current != NULL) {
+    if (current->id == entry_id) {
+      if (prev != NULL)
+        prev->next = current->next;
+      else
+        data_log->months[month].head = current->next;
+      free(current->text);
+      free(current);
+      return;
+    }
+    prev = current;
+    current = current->next;
+  }
+}
+
+/* Save given struct data to a given database created if non existed*/
+void SaveDataToDatabase(const char *db_name, LogData *db_data) {
+  sqlite3 *db = InitializeDatabase();
+  if (!db) return;
+  int rc = CreateTable(db, db_name);
+  if (rc != SQLITE_OK) {
+    sqlite3_close(db);
+    return;
+  }
+  rc = InsertData(db, db_data, db_name);
+  if (rc != SQLITE_OK) {
+    sqlite3_close(db);
+    return;
+  }
+  sqlite3_close(db);
+  FreeLog(db_data);
 }
