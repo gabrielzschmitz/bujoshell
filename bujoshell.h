@@ -100,6 +100,7 @@ struct AppData {
   CurrentPage page_history[PAGE_HISTORY_SIZE];
   int current_future_log;
   int current_monthly_log;
+  int current_daily_log;
   Window *main_window;
   Window *floating_window;
   int width, height;
