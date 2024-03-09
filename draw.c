@@ -1,5 +1,6 @@
 #include "draw.h"
 
+#include <linux/limits.h>
 #include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +9,7 @@
 
 #include "bujoshell.h"
 #include "config.h"
+#include "input.h"
 #include "update.h"
 #include "util.h"
 
@@ -345,7 +347,7 @@ ErrorCode DrawMonthlyLog(AppData *app) {
     if (render_days != NO_ERROR) return render_days;
     ErrorCode render_tasks =
       RenderTasks(app, &app->monthly_log.months[app->current_month],
-                  middle_x + 2, start_y + 1, end_width);
+                  middle_x + 3, start_y + 1, end_width);
     if (render_days != NO_ERROR) return render_tasks;
 
     DrawVerticalLine(start_y, end_height, middle_x, 0, 1, app->show_status_bar);
@@ -583,16 +585,20 @@ ErrorCode DrawDailyLog(AppData *app) {
     return NO_ERROR;
   }
 
+  const int number_of_columns = (window->width >= 139) ? 3 : 2;
   const int end_width = window->width + window->start_x - 2;
   const int end_height = window->height + window->start_y - 2;
   const int middle_x = window->middle_x;
   const int start_y = window->start_y + 1;
   const int start_x = window->start_x + 1;
 
+  time_t current_time = time(NULL);
+  struct tm *time_info = localtime(&current_time);
+  time_info->tm_mday = 1;
+  time_info->tm_mon = app->current_month - 1;
+  mktime(time_info);
+
   if (strcmp(ICONS, "nerdicons") == 0) {
-    const char *tasks[] = {"Implement a bullet journal like app in C",
-                           "Implement the DAILY LOG",
-                           "Make a database for each log type", NULL};
     const int window_width =
       ((app->width - 1) % 2 == 0) ? app->width - 1 : app->width;
 
@@ -603,34 +609,65 @@ ErrorCode DrawDailyLog(AppData *app) {
     const char *week_day = GetDayOfWeek(app->current_week_day);
     if (strcmp(week_day, "Invalid day") == 0) return INVALID_DAY;
 
-    int next_y = DrawDayLogEntry(start_y + 1, start_x + 2, app->current_day,
-                                 week_day, tasks);
-    next_y = DrawDayLogEntry(next_y, start_x + 2, app->current_day + 1,
-                             week_day, tasks);
-    next_y = DrawDayLogEntry(next_y, start_x + 2, app->current_day + 2,
-                             week_day, tasks);
+    ErrorCode display_daily_logs = DisplayDailyLogs(
+      app, start_y, start_x, &app->daily_log.months[app->selected_month],
+      app->selected_month, app->current_day, time_info->tm_wday);
+    if (display_daily_logs != NO_ERROR) return display_daily_logs;
 
-    for (int i = 1; i <= 3; i++)
-      DrawVerticalLine(start_y, end_height, (window_width / 3) * i, i, 3,
-                       app->show_status_bar);
+    for (int i = 1; i <= number_of_columns; i++)
+      DrawVerticalLine(start_y, end_height,
+                       (window_width / number_of_columns) * i, i,
+                       number_of_columns, app->show_status_bar);
   }
-
   return NO_ERROR;
 }
 
 /* Draws a day log entry with the day and all tasks/notes return the new y */
+ErrorCode DisplayDailyLogs(AppData *app, int start_y, int start_x,
+                           MonthEntry *month, int month_index, int current_day,
+                           int day_of_week) {
+  if (day_of_week < 0 || day_of_week > 6) return INVALID_DAY;
+  const char *week_days[] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
+
+  ErrorCode status = NO_ERROR;
+  const int days_in_month = DaysInMonth(app->current_year, month_index);
+  int y = start_y + 1;
+  int selected_id = GetEntryId(month, app->selected_entry);
+  LogEntry *selected_entry = GetEntryByID(month, selected_id);
+  for (int i = 1; i <= days_in_month; i++) {
+    LogEntry **entrys_of_day = GetEntrysOfDay(month, i);
+    if (entrys_of_day != NULL) {
+      int entrys_count = CountEntrys(entrys_of_day);
+      y =
+        DrawDayLogEntry(y, start_x + 2, i, week_days[(day_of_week + i - 1) % 7],
+                        entrys_of_day, selected_entry);
+      for (int j = 0; i < entrys_count; j++) free(entrys_of_day[j]);
+      free(entrys_of_day);
+    }
+  }
+
+  return status;
+}
+
+/* Draws a day log entry with the day and all tasks/notes return the new y */
 int DrawDayLogEntry(int start_y, int start_x, int current_day,
-                    const char *week_day, const char **tasks) {
-  int tasks_count = CountStrings(tasks);
+                    const char *week_day, LogEntry **entrys,
+                    LogEntry *selected_entry) {
+  int entrys_count = CountEntrys(entrys);
   SetColor(COLOR_BLACK, COLOR_WHITE, A_BOLD | A_UNDERLINE);
   mvprintw(start_y, start_x, "%02d - %s", current_day, week_day);
 
   start_y += 1;
-  SetColor(COLOR_WHITE, NO_COLOR, A_BOLD);
-  for (int i = 0; i < tasks_count; i++)
-    mvprintw(start_y + i, start_x, " %s", tasks[i]);
+  for (int i = 0; i < entrys_count; i++) {
+    if (entrys[i]->id == selected_entry->id)
+      SetColor(COLOR_BLACK, COLOR_WHITE, A_BOLD);
+    else
+      SetColor(COLOR_WHITE, NO_COLOR, A_BOLD);
+    mvprintw(start_y + i, start_x, "%s %s", EntryTypeToSymbol(entrys[i]->type),
+             entrys[i]->text);
+  }
 
-  return start_y + tasks_count + 1;
+  return start_y + entrys_count + 1;
 }
 
 /* Draws insert new entry */
@@ -671,26 +708,47 @@ ErrorCode DrawInsertEntry(AppData *app) {
     SetColor(COLOR_WHITE, NO_COLOR, A_BOLD);
     mvprintw(start_y + 5, start_x + 2, "ENTRY TEXT:");
     int split_position = app->insert_cursor_x;
+    int y = app->insert_cursor_y;
+
     if (app->input_mode == INSERT) {
-      mvprintw(start_y + 6, start_x + 2, "%.*s", split_position,
-               app->insert_buffer);
-
-      SetColor(COLOR_WHITE, NO_COLOR, A_BOLD | A_BLINK);
-      mvprintw(start_y + 6, start_x + 2 + app->insert_cursor_x, "▏");
-
-      SetColor(COLOR_WHITE, NO_COLOR, A_BOLD);
-      mvprintw(start_y + 6, start_x + 2 + split_position + 1, "%s",
-               app->insert_buffer + split_position);
+      if (y > 0) {
+        split_position = MAX_INPUT_PER_LINE;
+        mvprintw(start_y + 6, start_x + 2, "%.*s", split_position,
+                 app->insert_buffer);
+        mvprintw(start_y + 7, start_x + 2, "%s",
+                 app->insert_buffer + split_position);
+        SetColor(COLOR_WHITE, NO_COLOR, A_BOLD | A_BLINK);
+        mvprintw(start_y + 7,
+                 start_x + 2 + app->insert_cursor_x - MAX_INPUT_PER_LINE, "▏");
+      } else {
+        for (int i = 0; app->insert_buffer[i] != '\0'; ++i)
+          mvaddch(start_y + 6, start_x + 2 + i, app->insert_buffer[i]);
+        SetColor(COLOR_WHITE, NO_COLOR, A_BOLD | A_BLINK);
+        mvprintw(
+          start_y + 6,
+          start_x + 2 + app->insert_cursor_x - (app->insert_cursor_x * y), "▏");
+      }
     } else {
-      SetColor(COLOR_WHITE, NO_COLOR, A_BOLD);
-      mvprintw(start_y + 6, start_x + 2, "%.*s", split_position,
-               app->insert_buffer);
-      mvprintw(start_y + 6, start_x + 2 + app->insert_cursor_x, "█");
-      mvprintw(start_y + 6, start_x + 2 + split_position + 1, "%s",
-               app->insert_buffer + split_position);
+      if (y > 0) {
+        split_position = MAX_INPUT_PER_LINE;
+        mvprintw(start_y + 6, start_x + 2, "%.*s", split_position,
+                 app->insert_buffer);
+        mvprintw(start_y + 7, start_x + 2, "%s",
+                 app->insert_buffer + split_position);
+        SetColor(COLOR_WHITE, NO_COLOR, A_BOLD | A_BLINK);
+        mvprintw(start_y + 7,
+                 start_x + 2 + app->insert_cursor_x - MAX_INPUT_PER_LINE, "█");
+      } else {
+        for (int i = 0; app->insert_buffer[i] != '\0'; ++i)
+          mvaddch(start_y + 6, start_x + 2 + i, app->insert_buffer[i]);
+        SetColor(COLOR_WHITE, NO_COLOR, A_BOLD | A_BLINK);
+        mvprintw(
+          start_y + 6,
+          start_x + 2 + app->insert_cursor_x - (app->insert_cursor_x * y), "█");
+      }
     }
     const char *check_symbol[] = {"  ", " 󰄲 "};
-    mvprintw(start_y + 8, start_x + 2, "HAS DATE/DEADLINE:");
+    mvprintw(start_y + 9, start_x + 2, "HAS DATE/DEADLINE:");
     for (int i = 0; i < 2; i++) {
       if (app->entry_input == 3)
         SetColor((i == app->entry_has_date) ? COLOR_BLACK : COLOR_WHITE,
@@ -698,7 +756,7 @@ ErrorCode DrawInsertEntry(AppData *app) {
       else
         SetColor((i == app->entry_has_date) ? COLOR_BLACK : COLOR_WHITE,
                  (i == app->entry_has_date) ? COLOR_BLUE : NO_COLOR, A_BOLD);
-      mvprintw(start_y + 9, start_x + 2 + (i * 4), "%s", check_symbol[i]);
+      mvprintw(start_y + 10, start_x + 2 + (i * 4), "%s", check_symbol[i]);
     }
     RenderMonth(app, app->entry_month, end_width - 21, start_y + 2,
                 app->entry_day);
@@ -752,7 +810,9 @@ ErrorCode DisplayDeletionPopup(AppData *app) {
       else if (app->current_monthly_log == 1)
         entry_text = GetEntryText(&app->monthly_log.months[app->selected_month],
                                   app->selected_entry);
-    }
+    } else if (app->page_history[0] == DAILY_LOG)
+      entry_text = GetEntryText(&app->daily_log.months[app->selected_month],
+                                app->selected_entry);
 
     if (entry_text != NULL) {
       int text_length = strlen(entry_text);
