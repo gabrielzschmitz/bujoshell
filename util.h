@@ -61,6 +61,9 @@ void FreeLog(LogData *data_log);
 /* Function to convert EntryType enum to string */
 const char *EntryTypeToString(EntryType type);
 
+/* Function to convert EntryType enum to symbol */
+const char *EntryTypeToSymbol(EntryType type);
+
 /* Converts string entry type to enum entry type */
 EntryType StringtoEntryType(const char *type_str);
 
@@ -72,7 +75,10 @@ void AddEntry(LogData *data_log, EntryType type, const char *text,
 const char *GetDayOfWeek(int day);
 
 /* Returns the amount of strings in array of strings */
-int CountStrings(const char *strings[]);
+int CountStrings(char *strings[]);
+
+/* Returns the amount of entrys in array of entrys */
+int CountEntrys(LogEntry *entrys[]);
 
 /* Returns the text from given month and entry_index or NULL if dont find */
 char *GetEntryText(MonthEntry *month, int entry_index);
@@ -85,6 +91,18 @@ int GetEntryId(MonthEntry *month, int entry_index);
 
 /* Returns the id from a given month and day or -1 if dont find */
 int GetEntryIdByDay(MonthEntry *month, int n_month, int day);
+
+/* Gets the a entrys in a given month by its id */
+LogEntry *GetEntryByID(MonthEntry *month, int id);
+
+/* Gets the a list of all the entrys in a given day and month */
+LogEntry **GetEntrysOfDay(MonthEntry *month, int day);
+
+/* Adds a new entry to a given list of entrys */
+void AddToEntrysList(LogEntry ***list, int *num_entries, LogEntry *new_entry);
+
+/* Adds a new entry to a given list of strings */
+void AddToStringList(char ***list, int *num_entries, const char *new_entry);
 
 /* Remove an entry from the LogData struct by ID */
 void RemoveEntryByID(LogData *data_log, int month, int entry_id);

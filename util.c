@@ -125,6 +125,23 @@ const char *EntryTypeToString(EntryType type) {
   return "UNKNOWN";
 }
 
+/* Function to convert EntryType enum to symbol */
+const char *EntryTypeToSymbol(EntryType type) {
+  switch (type) {
+    case TASK:
+      return "";
+    case NOTE:
+      return "";
+    case EVENT:
+      return "";
+    case APPOINTMENT:
+      return "";
+    default:
+      return "";
+  }
+  return "";
+}
+
 /* Return the number of entrys in given month */
 int CountMonthEntrys(MonthEntry *month) {
   int entrys_count = 0;
@@ -330,14 +347,18 @@ const char *GetDayOfWeek(int day) {
 }
 
 /* Returns the amount of strings in array of strings */
-int CountStrings(const char *strings[]) {
+int CountStrings(char *strings[]) {
   int count = 0;
-  while (strings[count] != NULL) {
-    count++;
-  }
+  while (strings[count] != NULL) count++;
   return (count);
 }
 
+/* Returns the amount of entrys in array of entrys */
+int CountEntrys(LogEntry *entrys[]) {
+  int count = 0;
+  while (entrys[count] != NULL) count++;
+  return (count);
+}
 /* Returns the text from given month and entry_index or NULL if past size */
 char *GetEntryText(MonthEntry *month, int entry_index) {
   char *selected_entry = NULL;
@@ -404,6 +425,51 @@ int GetEntryIdByDay(MonthEntry *month, int n_month, int day) {
     current = current->next;
   }
   return selected_entry;
+}
+
+/* Gets the a entrys in a given month by its id */
+LogEntry *GetEntryByID(MonthEntry *month, int id) {
+  LogEntry *current = month->head;
+  while (current != NULL) {
+    if (current->id == id) return current;
+    current = current->next;
+  }
+  return NULL;
+}
+
+/* Gets the a list of all the entrys in a given day and month */
+LogEntry **GetEntrysOfDay(MonthEntry *month, int day) {
+  if (day < 1 || day > MAX_DAYS) return NULL;
+  LogEntry **entrys_list = NULL;
+  int number_of_entrys = 0;
+
+  LogEntry *current = month->head;
+  while (current != NULL) {
+    if (current->day == day)
+      AddToEntrysList(&entrys_list, &number_of_entrys, current);
+    current = current->next;
+  }
+
+  return entrys_list;
+}
+
+/* Adds a new entry to a given list of entrys */
+void AddToEntrysList(LogEntry ***list, int *num_entries, LogEntry *new_entry) {
+  (*num_entries)++;
+  *list = (LogEntry **)realloc(*list, (*num_entries + 1) * sizeof(LogEntry *));
+  (*list)[(*num_entries) - 1] = (LogEntry *)malloc(sizeof(LogEntry));
+  (*list)[(*num_entries) - 1] = new_entry;
+  (*list)[*num_entries] = NULL;
+}
+
+/* Adds a new entry to a given list of strings */
+void AddToStringList(char ***list, int *num_entries, const char *new_entry) {
+  (*num_entries)++;
+  *list = (char **)realloc(*list, (*num_entries + 1) * sizeof(char *));
+  (*list)[(*num_entries) - 1] =
+    (char *)malloc((strlen(new_entry) + 1) * sizeof(char));
+  strcpy((*list)[(*num_entries) - 1], new_entry);
+  (*list)[*num_entries] = NULL;
 }
 
 /* Remove an entry from the LogData struct by ID */
