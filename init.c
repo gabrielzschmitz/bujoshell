@@ -32,6 +32,7 @@ ErrorCode InitApp(AppData *app) {
   app->running = 1;
   InitDataLog(&app->future_log, "FutureLog");
   InitDataLog(&app->monthly_log, "MonthlyLog");
+  InitDataLog(&app->daily_log, "DailyLog");
 
   app->current_hour = 0;
   app->current_minute = 0;
@@ -63,6 +64,7 @@ ErrorCode InitApp(AppData *app) {
   for (int i = 0; i < PAGE_HISTORY_SIZE; i++) app->page_history[i] = FUTURE_LOG;
   app->current_future_log = -1;
   app->current_monthly_log = 0;
+  app->current_daily_log = 0;
   app->show_status_bar = 1;
   app->show_key_page = 0;
   app->show_index_page = 0;
@@ -132,4 +134,7 @@ void EndApp(AppData *app) {
   const char *monthly_log_db_name = "MonthlyLog";
   LogData *monthly_log_db_data = &app->monthly_log;
   SaveDataToDatabase(monthly_log_db_name, monthly_log_db_data);
+  const char *daily_log_db_name = "DailyLog";
+  LogData *daily_log_db_data = &app->daily_log;
+  SaveDataToDatabase(daily_log_db_name, daily_log_db_data);
 }
