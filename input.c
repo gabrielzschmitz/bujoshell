@@ -143,6 +143,23 @@ int HandleSelectedEntry(AppData *app) {
       default:
         break;
     }
+  } else if (app->page_history[0] == DAILY_LOG) {
+    int max_entrys =
+      CountMonthEntrys(&app->daily_log.months[app->selected_month]) - 1;
+    switch (app->user_input) {
+      case KEY_DOWN:
+      case 'j':
+        if (app->selected_entry < max_entrys) app->selected_entry++;
+        return 0;
+        break;
+      case KEY_UP:
+      case 'k':
+        if (app->selected_entry > 0) app->selected_entry--;
+        return 0;
+        break;
+      default:
+        break;
+    }
   }
   return 1;
 }
@@ -220,6 +237,12 @@ int HandlePopupInput(AppData *app) {
                          app->selected_entry);
           DeleteEntryByID(id_to_delete, "MonthlyLog");
           RemoveEntryByID(&app->monthly_log, app->current_month, id_to_delete);
+        } else if (app->page_history[0] == DAILY_LOG) {
+          int id_to_delete = GetEntryId(
+            &app->daily_log.months[app->selected_month], app->selected_entry);
+          DeleteEntryByID(id_to_delete, "DailyLog");
+          RemoveEntryByID(&app->daily_log, app->selected_month, id_to_delete);
+          if (app->selected_entry != 0) app->selected_entry--;
         }
       }
       return 0;
@@ -264,8 +287,10 @@ ErrorCode HandleNormalMode(AppData *app) {
         break;
       case '4':
       case 'd':
-        if (*current_page != DAILY_LOG)
+        if (*current_page != DAILY_LOG) {
           AddToPageHistory(current_page, DAILY_LOG);
+          app->selected_entry = 0;
+        }
         break;
       case 'N':
         if (*current_page == FUTURE_LOG)
@@ -320,6 +345,14 @@ ErrorCode HandleNormalMode(AppData *app) {
           if (app->deletion_popup != 1 &&
               GetEntryId(&app->monthly_log.months[app->current_month],
                          app->selected_entry) != -1) {
+            app->selected_option = 0;
+            app->deletion_popup = 1;
+          }
+        }
+        if (app->page_history[0] == DAILY_LOG) {
+          if (app->deletion_popup != 1 &&
+              CountMonthEntrys(&app->daily_log.months[app->selected_month]) >
+                0) {
             app->selected_option = 0;
             app->deletion_popup = 1;
           }
@@ -420,6 +453,9 @@ ErrorCode HandleNormalMode(AppData *app) {
             else if (app->page_history[0] == MONTHLY_LOG)
               AddEntry(&app->monthly_log, app->entry_type, app->insert_buffer,
                        app->current_year, app->entry_month, app->entry_day);
+            else if (app->page_history[0] == DAILY_LOG)
+              AddEntry(&app->daily_log, app->entry_type, app->insert_buffer,
+                       app->current_year, app->entry_month, app->entry_day);
           } else {
             if (app->page_history[0] == FUTURE_LOG)
               AddEntry(&app->future_log, app->entry_type, app->insert_buffer,
@@ -427,15 +463,23 @@ ErrorCode HandleNormalMode(AppData *app) {
             else if (app->page_history[0] == MONTHLY_LOG)
               AddEntry(&app->monthly_log, app->entry_type, app->insert_buffer,
                        app->current_year, app->entry_month, -1);
+            else if (app->page_history[0] == DAILY_LOG)
+              AddEntry(&app->daily_log, app->entry_type, app->insert_buffer,
+                       app->current_year, app->entry_month, -1);
           }
+          if (app->page_history[0] == FUTURE_LOG)
+            app->selected_entry =
+              CountMonthEntrys(&app->future_log.months[app->selected_month]) -
+              1;
+          else if (app->page_history[0] == DAILY_LOG)
+            app->selected_entry =
+              CountMonthEntrys(&app->daily_log.months[app->selected_month]) - 1;
           app->entry_input = 0;
           app->entry_day = -1;
           app->entry_month = -1;
           free(app->insert_buffer);
           app->insert_buffer = (char *)calloc(1, sizeof(char) + 1);
           app->insert_cursor_x = 0;
-          app->selected_entry =
-            CountMonthEntrys(&app->future_log.months[app->selected_month]) - 1;
         }
         break;
       case 'N':
@@ -562,7 +606,11 @@ ErrorCode HandleInsertMode(AppData *app) {
       }
       break;
     default:
-      if (strlen(app->insert_buffer) < 42)
+      if (strlen(app->insert_buffer) + 1 >= MAX_INPUT / 2)
+        app->insert_cursor_y = 1;
+      else
+        app->insert_cursor_y = 0;
+      if (strlen(app->insert_buffer) < MAX_INPUT)
         status = InsertCharacter(app, app->user_input);
       break;
   }
@@ -602,6 +650,11 @@ ErrorCode InsertCharacter(AppData *app, char input) {
 /* Function to remove character at cursor and shrink the buffer */
 ErrorCode RemoveCharacter(AppData *app) {
   int current_length = strlen(app->insert_buffer);
+  if (current_length - 1 >= MAX_INPUT / 2)
+    app->insert_cursor_y = 1;
+  else
+    app->insert_cursor_y = 0;
+
   if (current_length == 0 || app->insert_cursor_x > current_length)
     return NO_ERROR;
 
