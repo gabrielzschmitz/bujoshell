@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=bujoshell
+GenericName=A bullet journal app for the terminal
+Terminal=true
+Exec=bujoshell
+Type=Application
+Categories=Utility;
+Icon=/usr/local/share/bujoshell/icons/bujoshell.svg
