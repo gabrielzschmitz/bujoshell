@@ -44,7 +44,10 @@ int CreateTable(sqlite3 *db, const char *table_name);
 sqlite3 *InitializeDatabase();
 
 /* Callback function for executing SQL queries */
-static int callback(void *NotUsed, int argc, char **argv, char **azColName);
+int callback(void *NotUsed, int argc, char **argv, char **azColName);
+
+/* Copy a string from to a new pointer */
+char *strdup(const char *str);
 
 /* Return the number of entrys in given month */
 int CountMonthEntrys(MonthEntry *month);

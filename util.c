@@ -148,7 +148,6 @@ int CountMonthEntrys(MonthEntry *month) {
   LogEntry *current = month->head;
   while (current != NULL) {
     entrys_count += 1;
-    LogEntry *temp = current;
     current = current->next;
   }
   return entrys_count;
@@ -160,7 +159,6 @@ int CountMonthEntrysWithoutDay(MonthEntry *month) {
   LogEntry *current = month->head;
   while (current != NULL) {
     if (current->day == -1) entrys_count += 1;
-    LogEntry *temp = current;
     current = current->next;
   }
   return entrys_count;
@@ -185,12 +183,21 @@ void FreeLog(LogData *data_log) {
 }
 
 /* Callback function for executing SQL queries */
-static int callback(void *NotUsed, int argc, char **argv, char **azColName) {
+int callback(void *NotUsed, int argc, char **argv, char **azColName) {
   int i;
   for (i = 0; i < argc; i++)
     printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
   printf("\n");
   return 0;
+}
+
+/* Copy a string from to a new pointer */
+char *strdup(const char *str) {
+  size_t len = strlen(str) + 1;
+  char *new_str = malloc(len);
+  if (new_str == NULL) return NULL;
+  strcpy(new_str, str);
+  return new_str;
 }
 
 /* Initialize SQLite database */
@@ -381,8 +388,6 @@ char *GetEntryText(MonthEntry *month, int entry_index) {
 char *GetEntryTextByDay(MonthEntry *month, int n_month, int day) {
   char *selected_entry = NULL;
   LogEntry *current = month->head;
-  char date[3];
-  char full_date[6];
   while (current != NULL) {
     if (current->month == n_month && current->day == day) {
       selected_entry = strdup(current->text);
@@ -415,8 +420,6 @@ int GetEntryId(MonthEntry *month, int entry_index) {
 int GetEntryIdByDay(MonthEntry *month, int n_month, int day) {
   int selected_entry = -1;
   LogEntry *current = month->head;
-  char date[3];
-  char full_date[6];
   while (current != NULL) {
     if (current->month == n_month && current->day == day) {
       selected_entry = current->id;
