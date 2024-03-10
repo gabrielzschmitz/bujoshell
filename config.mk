@@ -1,8 +1,8 @@
 # Compiler and flags
-CC = tcc
-TCCFLAGS = -Wunsupported -Wwrite-strings
+CC = gcc
+TCCFLAGS = -Wwrite-strings
 GCCFLAGS = -Wextra
-CFLAGS = -std=c99 $(TCCFLAGS) -Wall -pedantic -O3 $(DFLAGS)
+CFLAGS = -std=c99 $(GCCFLAGS) -Wall -pedantic -O3 $(DFLAGS)
 
 # Directories
 PREFIX = /usr/local
