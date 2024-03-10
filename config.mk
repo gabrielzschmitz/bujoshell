@@ -6,6 +6,7 @@ CFLAGS = -std=c99 $(TCCFLAGS) -Wall -pedantic -O3 $(DFLAGS)
 
 # Directories
 PREFIX = /usr/local
+APPPREFIX = $(PREFIX)/share/applications
 INCLUDES = -I$(PREFIX)/include
 LIBDIR = -L$(PREFIX)/lib
 
