@@ -9,7 +9,7 @@
 #include "input.h"
 #include "update.h"
 
-int main(int argc, char **argv) {
+int main(void) {
   /* Enable Emojis */
   setlocale(LC_CTYPE, "");
 
