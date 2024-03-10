@@ -33,7 +33,7 @@
 To use, simply <b>type it</b> in the <b>terminal</b>:
 
 ```shell
-bujoshell
+$ bujoshell
 ```
 
 ## ⚓ Dependencies
@@ -63,17 +63,17 @@ $ brew install gcc sqlite ncurses
 
 ## 💾 How to Install
 
-### Normal
-
-**Note**: a good practice is to clone the repo at _$HOME/.local/src/_
-
-**Note**: first install all the _dependencies_!
+To install you just need to copy and paste this 3 commands in the terminal:
 
 ```shell
 $ git clone https://github.com/gabrielzschmitz/bujoshell.git
 $ cd bujoshell
 $ sudo make install
 ```
+
+**Note**: a good practice is to clone the repo at _$HOME/.local/src/_
+
+**Note**: first install all the _dependencies_!
 
 ## 🔧 Preferences
 
