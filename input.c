@@ -606,11 +606,11 @@ ErrorCode HandleInsertMode(AppData *app) {
       }
       break;
     default:
-      if (strlen(app->insert_buffer) + 1 >= MAX_INPUT / 2)
+      if (strlen(app->insert_buffer) + 1 >= MAX_INPUT_LENGTH / 2)
         app->insert_cursor_y = 1;
       else
         app->insert_cursor_y = 0;
-      if (strlen(app->insert_buffer) < MAX_INPUT)
+      if (strlen(app->insert_buffer) < MAX_INPUT_LENGTH)
         status = InsertCharacter(app, app->user_input);
       break;
   }
@@ -650,7 +650,7 @@ ErrorCode InsertCharacter(AppData *app, char input) {
 /* Function to remove character at cursor and shrink the buffer */
 ErrorCode RemoveCharacter(AppData *app) {
   int current_length = strlen(app->insert_buffer);
-  if (current_length - 1 >= MAX_INPUT / 2)
+  if (current_length - 1 >= MAX_INPUT_LENGTH / 2)
     app->insert_cursor_y = 1;
   else
     app->insert_cursor_y = 0;
@@ -673,7 +673,6 @@ ErrorCode RemoveCharacter(AppData *app) {
 /* Separate all the input entry into the correct variables */
 ErrorCode SeparateEntryVariables(const char *input, char *type, char **text,
                                  int *dd, int *mm) {
-  char *token;
   char *lastSpace;
 
   *type = *input;
@@ -711,36 +710,9 @@ ErrorCode InputEntry(AppData *app) {
   if (app->input_mode != INSERT) return status;
   if (app->user_input == -1) return status;
 
-  EntryType type;
-  if (app->page_history[0] == FUTURE_LOG) {
-    char entry_type = app->insert_buffer[0];
-
-    switch (entry_type) {
-      case '\0':
-      case 't':
-      case 'T':
-        type = TASK;
-        break;
-      case 'n':
-      case 'N':
-        type = NOTE;
-        break;
-      case 'a':
-      case 'A':
-        type = APPOINTMENT;
-        break;
-      case 'e':
-      case 'E':
-        type = EVENT;
-        break;
-      default:
-        return NO_ERROR;
-    }
-  }
-
   if (app->user_input == KEY_ENTER || app->user_input == ENTER) {
     char type;
-    char *text;
+    char *text = NULL;
     int dd, mm;
     SeparateEntryVariables(app->insert_buffer, &type, &text, &dd, &mm);
     AddEntry(&app->future_log, type, text, app->current_year, dd, mm);

@@ -6,7 +6,7 @@
 #include "bujoshell.h"
 
 /* Defining some ASCII Keys */
-#define MAX_INPUT          84
+#define MAX_INPUT_LENGTH   84
 #define MAX_INPUT_PER_LINE 42
 #define BACKSPACE          127
 #define ESC                27
