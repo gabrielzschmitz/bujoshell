@@ -588,7 +588,6 @@ ErrorCode DrawDailyLog(AppData *app) {
   const int number_of_columns = (window->width >= 139) ? 3 : 2;
   const int end_width = window->width + window->start_x - 2;
   const int end_height = window->height + window->start_y - 2;
-  const int middle_x = window->middle_x;
   const int start_y = window->start_y + 1;
   const int start_x = window->start_x + 1;
 
@@ -611,7 +610,7 @@ ErrorCode DrawDailyLog(AppData *app) {
 
     ErrorCode display_daily_logs = DisplayDailyLogs(
       app, start_y, start_x, &app->daily_log.months[app->selected_month],
-      app->selected_month, app->current_day, time_info->tm_wday);
+      app->selected_month, time_info->tm_wday);
     if (display_daily_logs != NO_ERROR) return display_daily_logs;
 
     for (int i = 1; i <= number_of_columns; i++)
@@ -624,7 +623,7 @@ ErrorCode DrawDailyLog(AppData *app) {
 
 /* Draws a day log entry with the day and all tasks/notes return the new y */
 ErrorCode DisplayDailyLogs(AppData *app, int start_y, int start_x,
-                           MonthEntry *month, int month_index, int current_day,
+                           MonthEntry *month, int month_index,
                            int day_of_week) {
   if (day_of_week < 0 || day_of_week > 6) return INVALID_DAY;
   const char *week_days[] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
@@ -798,7 +797,7 @@ ErrorCode DisplayDeletionPopup(AppData *app) {
     mvprintw(start_y + 2, start_x + 15, "DELETE");
 
     SetColor(COLOR_WHITE, NO_COLOR, A_BOLD);
-    char *entry_text;
+    char *entry_text = NULL;
     if (app->page_history[0] == FUTURE_LOG)
       entry_text = GetEntryText(&app->future_log.months[app->selected_month],
                                 app->selected_entry);
@@ -814,7 +813,9 @@ ErrorCode DisplayDeletionPopup(AppData *app) {
       entry_text = GetEntryText(&app->daily_log.months[app->selected_month],
                                 app->selected_entry);
 
-    if (entry_text != NULL) {
+    if (entry_text == NULL)
+      return MALLOC_ERROR;
+    else {
       int text_length = strlen(entry_text);
       if (text_length > 25) text_length = 25;
       for (int i = 0; i < text_length; i++)

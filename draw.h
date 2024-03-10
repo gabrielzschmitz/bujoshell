@@ -61,8 +61,7 @@ ErrorCode DrawDailyLog(AppData *app);
 
 /* Draws a day log entry with the day and all tasks/notes return the new y */
 ErrorCode DisplayDailyLogs(AppData *app, int start_y, int start_x,
-                           MonthEntry *month, int month_index, int current_day,
-                           int day_of_week);
+                           MonthEntry *month, int month_index, int day_of_week);
 
 /* Draws a day log entry with the day and all tasks/notes return the new y */
 int DrawDayLogEntry(int start_y, int start_x, int current_day,
