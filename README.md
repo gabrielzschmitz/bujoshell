@@ -83,7 +83,7 @@ then `sudo make install` to take effect. You can change those configs:
 
 - <b><i>ICONS</i></b>: iconsoff - iconson - nerdicons;
 - <b><i>MIN_WIDTH</i></b>: 1 - ∞;
-- <b><i>MIN_HEIGTH</i></b>: 1 -∞;
+- <b><i>MIN_HEIGTH</i></b>: 1 - ∞;
 
 ## 📝 To-do
 
