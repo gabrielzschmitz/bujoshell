@@ -9,7 +9,7 @@ static const char *ICONS = "nerdicons";
 
 /* The minimum width and heigth allowed
  * Default: 73 & 35
- * Note: just tweak if necessary */
+ * Note: just tweak if strictly necessary */
 static const int MIN_WIDTH = 73;
 static const int MIN_HEIGTH = 35;
 
