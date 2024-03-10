@@ -20,9 +20,9 @@
 
 <p align="center">
   <a href="#-how-to-use">How to Use</a> •
-  <a href="#-dependencies">Dependencies</a>
+  <a href="#-dependencies">Dependencies</a> •
   <a href="#-how-to-install">How to Install</a> •
-  <a href="#-preferences">Preferences</a>
+  <a href="#-preferences">Preferences</a> •
   <a href="#-to-do">To-do</a> •
   <a href="#-contribute">Contribute</a> •
   <a href="#-license">License</a>
