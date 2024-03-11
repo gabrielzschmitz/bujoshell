@@ -6,7 +6,7 @@ OBJS = $(SRCS:.c=.o)
 
 .PHONY: all clean
 
-all: bujoshell
+all: bujoshell desktop_file
 
 bujoshell: $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
