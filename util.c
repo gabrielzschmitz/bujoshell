@@ -5,8 +5,38 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "bujoshell.h"
+
+/* Create the data folder and set database file */
+ErrorCode CreateDataFolder(AppData *app) {
+  char *home = getenv("HOME");
+  if (home == NULL) return ENV_ERROR;
+  int home_length = strlen(home);
+
+  char *data_dir = NULL;
+  data_dir =
+    (char *)malloc(home_length + strlen("/") + strlen(app->data_directory) + 1);
+  if (data_dir == NULL) return MALLOC_ERROR;
+  strcpy(data_dir, home);
+  strcat(data_dir, "/");
+  strcat(data_dir, app->data_directory);
+  app->data_directory = data_dir;
+
+  mkdir(app->data_directory, 0766);
+
+  char *db_file = NULL;
+  db_file =
+    (char *)malloc(home_length + strlen("/") + strlen(app->database_file) + 1);
+  if (db_file == NULL) return MALLOC_ERROR;
+  strcpy(db_file, home);
+  strcat(db_file, "/");
+  strcat(db_file, app->database_file);
+  app->database_file = db_file;
+
+  return NO_ERROR;
+}
 
 /* Set text foreground and background colors */
 void SetColor(short int fg, short int bg, chtype attr) {
@@ -201,11 +231,11 @@ char *strdup(const char *str) {
 }
 
 /* Initialize SQLite database */
-sqlite3 *InitializeDatabase() {
+sqlite3 *InitializeDatabase(const char *db_path) {
   sqlite3 *db;
   int rc;
 
-  rc = sqlite3_open("bujoshell.db", &db);
+  rc = sqlite3_open(db_path, &db);
   if (rc) {
     fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
     return NULL;
@@ -285,12 +315,13 @@ EntryType StringtoEntryType(const char *type_str) {
 }
 
 /* Deserialize data from SQLite database to LogData struct */
-void DeserializeFromDB(LogData *data_log, const char *db_name) {
+void DeserializeFromDB(LogData *data_log, const char *db_name,
+                       const char *db_path) {
   sqlite3 *db;
   sqlite3_stmt *res;
   int rc;
 
-  db = InitializeDatabase();
+  db = InitializeDatabase(db_path);
   if (!db) return;
 
   char sql_query[512];
@@ -322,11 +353,11 @@ void DeserializeFromDB(LogData *data_log, const char *db_name) {
 }
 
 /* Delete an entry from the database by ID */
-void DeleteEntryByID(int entry_id, const char *db_name) {
+void DeleteEntryByID(int entry_id, const char *db_name, const char *db_path) {
   sqlite3 *db;
   int rc;
 
-  db = InitializeDatabase();
+  db = InitializeDatabase(db_path);
   if (!db) return;
 
   // Construct the SQL query to delete the entry with the given ID
@@ -496,8 +527,9 @@ void RemoveEntryByID(LogData *data_log, int month, int entry_id) {
 }
 
 /* Save given struct data to a given database created if non existed*/
-void SaveDataToDatabase(const char *db_name, LogData *db_data) {
-  sqlite3 *db = InitializeDatabase();
+void SaveDataToDatabase(const char *db_name, LogData *db_data,
+                        const char *db_path) {
+  sqlite3 *db = InitializeDatabase(db_path);
   if (!db) return;
   int rc = CreateTable(db, db_name);
   if (rc != SQLITE_OK) {

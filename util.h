@@ -10,6 +10,9 @@
 #define PALLETE_SIZE (COLOR_WHITE - COLOR_BLACK + 1)
 #define NO_COLOR     -1
 
+/* Create the data folder and set database file */
+ErrorCode CreateDataFolder(AppData *app);
+
 /* Set text foreground and background colors */
 void SetColor(short int fg, short int bg, chtype attr);
 
@@ -29,10 +32,11 @@ int IsLeapYear(int year);
 int DaysInMonth(int year, int month);
 
 /* Deserialize data from SQLite database to LogData struct */
-void DeserializeFromDB(LogData *data_log, const char *db_name);
+void DeserializeFromDB(LogData *data_log, const char *db_name,
+                       const char *db_path);
 
 /* Delete an entry from the database by ID */
-void DeleteEntryByID(int entry_id, const char *db_name);
+void DeleteEntryByID(int entry_id, const char *db_name, const char *db_path);
 
 /* Insert data into Log table */
 int InsertData(sqlite3 *db, const LogData *data_log, const char *db_name);
@@ -41,7 +45,7 @@ int InsertData(sqlite3 *db, const LogData *data_log, const char *db_name);
 int CreateTable(sqlite3 *db, const char *table_name);
 
 /* Initialize SQLite database */
-sqlite3 *InitializeDatabase();
+sqlite3 *InitializeDatabase(const char *db_path);
 
 /* Callback function for executing SQL queries */
 int callback(void *NotUsed, int argc, char **argv, char **azColName);
@@ -111,6 +115,7 @@ void AddToStringList(char ***list, int *num_entries, const char *new_entry);
 void RemoveEntryByID(LogData *data_log, int month, int entry_id);
 
 /* Save given struct data to a given database created if non existed*/
-void SaveDataToDatabase(const char *db_name, LogData *db_data);
+void SaveDataToDatabase(const char *db_name, LogData *db_data,
+                        const char *db_path);
 
 #endif /* UTIL_H_ */
