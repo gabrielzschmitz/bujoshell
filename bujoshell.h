@@ -24,6 +24,7 @@ typedef enum {
   TOO_SMALL_SCREEN,
   INVALID_MONTH,
   INVALID_DAY,
+  ENV_ERROR
 } ErrorCode;
 
 /* Defining entry type enum */
@@ -108,6 +109,9 @@ struct AppData {
   int show_status_bar;
   int show_key_page;
   int show_index_page;
+
+  char *data_directory;
+  char *database_file;
 };
 
 #endif /* BUJOTUI_H_ */
