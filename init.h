@@ -12,7 +12,7 @@ void InitScreen(void);
 ErrorCode InitApp(AppData *app);
 
 /* Initialize a future log */
-void InitDataLog(LogData *data_log, const char *db_name);
+void InitDataLog(LogData *data_log, const char *db_name, const char *db_path);
 
 /* Initialize a window size */
 Window *InitWindowSize(int start_x, int start_y, int width, int height);

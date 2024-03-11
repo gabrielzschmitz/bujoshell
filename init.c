@@ -29,10 +29,13 @@ void InitScreen(void) {
 
 /* Initialize variables */
 ErrorCode InitApp(AppData *app) {
+  app->data_directory = strdup(DATADIR);
+  app->database_file = strdup(DBFILE);
+  if (CreateDataFolder(app) != NO_ERROR) return MALLOC_ERROR;
   app->running = 1;
-  InitDataLog(&app->future_log, "FutureLog");
-  InitDataLog(&app->monthly_log, "MonthlyLog");
-  InitDataLog(&app->daily_log, "DailyLog");
+  InitDataLog(&app->future_log, "FutureLog", app->database_file);
+  InitDataLog(&app->monthly_log, "MonthlyLog", app->database_file);
+  InitDataLog(&app->daily_log, "DailyLog", app->database_file);
 
   app->current_hour = 0;
   app->current_minute = 0;
@@ -77,11 +80,11 @@ ErrorCode InitApp(AppData *app) {
 }
 
 /* Initialize a future log */
-void InitDataLog(LogData *data_log, const char *db_name) {
+void InitDataLog(LogData *data_log, const char *db_name, const char *db_path) {
   for (int i = 0; i <= MAX_MONTHS; i++) data_log->months[i].head = NULL;
   data_log->last_id = 0;
   data_log->current_id = 0;
-  DeserializeFromDB(data_log, db_name);
+  DeserializeFromDB(data_log, db_name, db_path);
 }
 
 /* Initialize a window size */
@@ -130,11 +133,13 @@ void EndApp(AppData *app) {
   // Insert data into the tables
   const char *future_log_db_name = "FutureLog";
   LogData *future_log_db_data = &app->future_log;
-  SaveDataToDatabase(future_log_db_name, future_log_db_data);
+  SaveDataToDatabase(future_log_db_name, future_log_db_data,
+                     app->database_file);
   const char *monthly_log_db_name = "MonthlyLog";
   LogData *monthly_log_db_data = &app->monthly_log;
-  SaveDataToDatabase(monthly_log_db_name, monthly_log_db_data);
+  SaveDataToDatabase(monthly_log_db_name, monthly_log_db_data,
+                     app->database_file);
   const char *daily_log_db_name = "DailyLog";
   LogData *daily_log_db_data = &app->daily_log;
-  SaveDataToDatabase(daily_log_db_name, daily_log_db_data);
+  SaveDataToDatabase(daily_log_db_name, daily_log_db_data, app->database_file);
 }
