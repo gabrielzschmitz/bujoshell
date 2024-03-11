@@ -222,7 +222,7 @@ int HandlePopupInput(AppData *app) {
         if (app->page_history[0] == FUTURE_LOG) {
           int id_to_delete = GetEntryId(
             &app->future_log.months[app->selected_month], app->selected_entry);
-          DeleteEntryByID(id_to_delete, "FutureLog");
+          DeleteEntryByID(id_to_delete, "FutureLog", app->database_file);
           RemoveEntryByID(&app->future_log, app->selected_month, id_to_delete);
           if (app->selected_entry != 0) app->selected_entry--;
         } else if (app->page_history[0] == MONTHLY_LOG) {
@@ -235,12 +235,12 @@ int HandlePopupInput(AppData *app) {
             id_to_delete =
               GetEntryId(&app->monthly_log.months[app->current_month],
                          app->selected_entry);
-          DeleteEntryByID(id_to_delete, "MonthlyLog");
+          DeleteEntryByID(id_to_delete, "MonthlyLog", app->database_file);
           RemoveEntryByID(&app->monthly_log, app->current_month, id_to_delete);
         } else if (app->page_history[0] == DAILY_LOG) {
           int id_to_delete = GetEntryId(
             &app->daily_log.months[app->selected_month], app->selected_entry);
-          DeleteEntryByID(id_to_delete, "DailyLog");
+          DeleteEntryByID(id_to_delete, "DailyLog", app->database_file);
           RemoveEntryByID(&app->daily_log, app->selected_month, id_to_delete);
           if (app->selected_entry != 0) app->selected_entry--;
         }
